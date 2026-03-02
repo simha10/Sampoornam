@@ -1,0 +1,136 @@
+# Sampoornam Foods — Implementation Documentation
+
+> Last updated: March 2, 2026
+
+## System Overview
+
+Sampoornam Foods is a full-stack e-commerce platform for a premium South Indian cloud kitchen specializing in sweets and namkeens. The system uses a **WhatsApp-based checkout** (no payment gateway) and a **phone-number-based** identity model (no sign-up/login required).
+
+---
+
+## Architecture
+
+```
+Sampoornam/
+├── client/          → Next.js 14 (App Router) frontend on port 7000
+├── server/          → Express.js + MongoDB API on port 5000
+└── DOCS/            → Project documentation & PRD
+```
+
+### Tech Stack
+
+| Layer       | Technology                        |
+|-------------|-----------------------------------|
+| Frontend    | Next.js 14, Tailwind CSS v4, Framer Motion |
+| State       | Zustand (cart, localStorage persistence) |
+| Backend     | Express.js 5, Mongoose 9          |
+| Database    | MongoDB (local)                    |
+| Auth        | JWT (admin only)                   |
+| Checkout    | WhatsApp Business API redirect     |
+| Icons       | @heroicons/react                   |
+
+---
+
+## Features Implemented
+
+### 1. Product Catalog
+- **27 products**: 16 sweets + 11 namkeens
+- Weight-based pricing: 250g / 500g / 1kg variants auto-calculated from per-kg price
+- Piece-based pricing: 6 / 12 / 24 pcs (Gulab Jamun, Rasugulla)
+- Tags: `pure-ghee`, `bestseller`, `festival`, `sugar-free`, etc.
+- Featured products for homepage highlights
+
+### 2. Shop Page (`/shop`)
+- Category tabs: All / Sweets / Namkeens
+- Deep-linking via URL params: `/shop?category=sweets`
+- ProductCard with variant selector, dynamic pricing, and Add to Cart
+- Loading skeletons, error states, and empty states
+- Responsive grid: 2 columns (mobile), 3 columns (tablet), 4 columns (desktop)
+
+### 3. Cart & Checkout
+- **Zustand cart store** with localStorage persistence
+- Slide-out CartDrawer with item list, quantity controls (+/−), and trash icon
+- Checkout form: Customer Name, Mobile Number (10-digit), Delivery Address, Notes
+- "Place Order via WhatsApp" button → compiles cart into formatted message → opens `wa.me/917007066735`
+- Cart count badge on header and bottom nav icons
+
+### 4. Orders Tracking (`/orders`)
+- Lookup by 10-digit phone number
+- Order list with color-coded status badges:
+  - 🔵 Ordered → 🟣 Confirmed → 🟡 Preparing → 🟠 Out for Delivery → 🟢 Delivered → 🔴 Cancelled
+- Customer can cancel active orders
+- Order number format: `SF-YYYYMMDD-001`
+
+### 5. Navigation
+- **Desktop header**: Home, Shop (dropdown → Sweets / Namkeens), Orders, Cart icon with badge
+- **Mobile bottom bar**: Home, Shop (slide-up sub-menu), Cart, Orders
+- No hamburger menu, no sign-in/sign-up
+- All buttons and CTAs navigate to actual pages
+
+### 6. Admin API (Backend only — no UI yet)
+- Login with phone + password (JWT)
+- Product CRUD (create, read, update, delete)
+- Order management: list, filter by status, update status
+- Dashboard stats: total orders, active, delivered, cancelled, revenue
+
+### 7. Homepage
+- Hero banner: Portrait (MUI.png) for mobile, landscape (main.png) for desktop
+- Trust badges: 100% Pure Desi Ghee, FSSAI Certified, Lucknow Delivery
+- Signature Collections: Sweets and Namkeens cards → link to `/shop?category=...`
+- Footer with contact info and newsletter section
+
+---
+
+## API Endpoints
+
+### Public
+
+| Method  | Endpoint                          | Description                    |
+|---------|-----------------------------------|--------------------------------|
+| `GET`   | `/api/products`                   | List products (`?category=`, `?featured=true`) |
+| `GET`   | `/api/products/:slug`             | Single product by slug         |
+| `POST`  | `/api/orders`                     | Create order → returns WhatsApp URL |
+| `GET`   | `/api/orders/:orderNumber`        | Track order by number          |
+| `GET`   | `/api/orders/phone/:phone`        | List orders by phone           |
+| `PATCH` | `/api/orders/:orderNumber/cancel` | Cancel order (customer)        |
+| `GET`   | `/api/health`                     | Health check                   |
+
+### Admin (JWT Protected)
+
+| Method   | Endpoint                           | Description              |
+|----------|-------------------------------------|--------------------------|
+| `POST`   | `/api/admin/login`                 | Login → returns JWT       |
+| `GET`    | `/api/admin/products`              | List all products         |
+| `POST`   | `/api/admin/products`              | Create product            |
+| `PUT`    | `/api/admin/products/:id`          | Update product            |
+| `DELETE` | `/api/admin/products/:id`          | Delete product            |
+| `GET`    | `/api/admin/orders`                | List orders (`?status=`)  |
+| `PATCH`  | `/api/admin/orders/:id/status`     | Update order status       |
+| `GET`    | `/api/admin/stats`                 | Dashboard stats           |
+
+---
+
+## Database Schema
+
+### Product
+- `name`, `slug` (auto-generated), `category` (sweets/namkeens)
+- `pricingType` (weight/piece), `variants` [{label, price, weight}]
+- `tags`, `isAvailable`, `isFeatured`, `sortOrder`
+
+### Order
+- `orderNumber` (auto: SF-YYYYMMDD-NNN)
+- `customerName`, `customerPhone`, `deliveryAddress`, `deliveryDateTime`
+- `items` [{productName, variant, quantity, unitPrice, lineTotal}]
+- `subtotal`, `status`, `cancelledBy` (user/admin), `notes`
+
+---
+
+## What's NOT Implemented Yet
+
+- [ ] Admin dashboard UI
+- [ ] Product images (currently emoji placeholders)
+- [ ] Search / filter within shop page
+- [ ] User accounts / auth
+- [ ] Payment gateway integration
+- [ ] Order confirmation notifications
+- [ ] Delivery tracking

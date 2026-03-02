@@ -1,0 +1,44 @@
+# Product Requirements Document (PRD): Sampoornam Foods Digital Experience
+
+## 1. Project Overview
+**Product Name:** Sampoornam Foods Web Platform
+**Platform:** Responsive Web Application (Mobile-First, Desktop-Optimized)
+**Objective:** Transform a local cloud kitchen into a premium, luxury culinary brand through a cinematic, Awwwards-level e-commerce landing page. 
+**Key Differentiator:** Utilizing high-performance scroll-based storytelling (scrollytelling) and a frictionless, zero-payment-gateway checkout system via WhatsApp.
+
+## 2. Technical Architecture
+* **Core Framework:** Next.js 14 (App Router) for SSR, SEO optimization, and file-based routing.
+* **Styling:** Tailwind CSS for utility-first, strict design system enforcement.
+* **Animation Engine:** Framer Motion (for UI/DOM transitions) and GSAP ScrollTrigger (for high-performance Canvas rendering).
+* **Rendering:** HTML5 `<canvas>` for frame-by-frame image sequence playback (bypassing native `<video>` tags to ensure 60fps reverse-scroll performance).
+* **State Management:** Zustand (for a lightweight, persistent global cart).
+* **Hosting:** Vercel.
+
+## 3. Core User Journeys & Features
+
+### 3.1. The Cinematic Scrollytelling Hero (Home Page)
+* **Mechanism:** A sticky `400vh` section. An HTML5 canvas scrubs through a 210-frame (7-second, 30fps) image sequence mapped to the user's vertical scroll distance.
+* **Pre-loading:** All sequence frames must be pre-loaded via a hidden JavaScript `Image()` array before allowing scroll interaction to prevent flickering.
+* **Background Blending:** The page background must strictly match the charcoal/black edge of the video frames (e.g., `#121212`) creating an "invisible edge" illusion.
+
+### 3.2. Dual-Theme Navigation Portal
+At the end of the scroll sequence, the UI splits into a 50/50 dual doorway:
+* **The Sweets Portal (Dark Mode):** * *Aesthetics:* Charcoal background (`#121212`), pure white text, metallic gold (`#D4AF37`) UI accents.
+    * *Products:* Kaju Barfi, Gulab Jamun, Rasgulla, etc.
+* **The Namkeens Portal (Warm Mode):** * *Aesthetics:* Warm mustard/golden background (`#F3CA52`), dark espresso text for high contrast.
+    * *Products:* Masala Mathri, Samosas, Papdi, etc.
+* **Interaction:** Hovering over one half expands its width slightly, dims the opposite half, and subtly scales the typography.
+
+### 3.3. Dynamic E-Commerce Product Grids
+* **UI Components:** Glassmorphism product cards with ultra-high-resolution imagery.
+* **Pricing Engine:** Toggle switches for variable pricing metrics. Users must be able to select items by weight (250g, 500g, 1kg) or by piece (for items like Rasgulla). Prices dynamically update on the UI.
+
+### 3.4. Frictionless Cart & WhatsApp Checkout
+* **Cart Drawer:** A slide-out panel managed by Zustand holding the current order, selected variants (weight/pieces), and the running total.
+* **Checkout Form:** Collects Customer Name, Phone Number, Delivery Address, and Delivery Date/Time.
+* **The Handoff:** Clicking "Place Order" bypasses Stripe/Razorpay. Instead, it compiles the cart array and user details into a URL-encoded string and redirects the user to the WhatsApp Business API: `wa.me/917007066735?text=[FormattedOrder]`.
+
+## 4. Design System & Typography
+* **Navbar:** Apple-inspired. Starts fully transparent. Upon scrolling past the hero sequence, transitions into a fixed, glassmorphism (backdrop-blur) header.
+* **Typography:** * *Headings:* Playfair Display (or similar elegant serif) to convey culinary luxury.
+    * *Body/UI:* Inter or Geist for supreme legibility and modern tech aesthetics.
