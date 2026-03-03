@@ -134,3 +134,75 @@ export type CreateOrderPayload = {
         quantity: number;
     }[];
 };
+
+export type AdminStats = {
+    totalOrders: number;
+    activeOrders: number;
+    deliveredOrders: number;
+    cancelledOrders: number;
+    totalProducts: number;
+    totalRevenue: number;
+};
+
+// ============ Admin APIs ============
+
+function authHeaders(token: string): Record<string, string> {
+    return { Authorization: `Bearer ${token}` };
+}
+
+export async function adminLogin(phone: string, password: string) {
+    return apiRequest<{ success: boolean; token: string }>("/admin/login", {
+        method: "POST",
+        body: { phone, password },
+    });
+}
+
+export async function adminGetStats(token: string) {
+    return apiRequest<{ success: boolean; data: AdminStats }>("/admin/stats", {
+        headers: authHeaders(token),
+    });
+}
+
+export async function adminGetOrders(token: string, status?: string) {
+    const qs = status ? `?status=${status}` : "";
+    return apiRequest<{ success: boolean; count: number; data: Order[] }>(
+        `/admin/orders${qs}`,
+        { headers: authHeaders(token) }
+    );
+}
+
+export async function adminUpdateOrderStatus(token: string, orderId: string, status: string) {
+    return apiRequest<{ success: boolean; data: Order }>(
+        `/admin/orders/${orderId}/status`,
+        { method: "PATCH", body: { status }, headers: authHeaders(token) }
+    );
+}
+
+export async function adminGetProducts(token: string) {
+    return apiRequest<{ success: boolean; count: number; data: Product[] }>("/admin/products", {
+        headers: authHeaders(token),
+    });
+}
+
+export async function adminCreateProduct(token: string, data: Partial<Product>) {
+    return apiRequest<{ success: boolean; data: Product }>("/admin/products", {
+        method: "POST",
+        body: data,
+        headers: authHeaders(token),
+    });
+}
+
+export async function adminUpdateProduct(token: string, id: string, data: Partial<Product>) {
+    return apiRequest<{ success: boolean; data: Product }>(`/admin/products/${id}`, {
+        method: "PUT",
+        body: data,
+        headers: authHeaders(token),
+    });
+}
+
+export async function adminDeleteProduct(token: string, id: string) {
+    return apiRequest<{ success: boolean; message: string }>(`/admin/products/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(token),
+    });
+}

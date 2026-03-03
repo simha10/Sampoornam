@@ -61,7 +61,7 @@ export default function HeroBanner() {
 
             {/* === DESKTOP HERO: Full-bleed landscape === */}
             <div className="relative hidden sm:block">
-                <div className="relative h-[75vh] max-h-[700px] min-h-[500px] w-full overflow-hidden">
+                <div className="relative h-[75vh] min-h-[700px] w-full overflow-hidden">
                     <Image
                         src="/main.png"
                         alt="Sampoornam Foods — A Feast for the Senses"

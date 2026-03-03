@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { getOrdersByPhone, cancelOrder, Order } from "@/lib/api";
+import { getOrdersByPhone, getOrder, cancelOrder, Order } from "@/lib/api";
 import AppHeader from "../components/AppHeader";
 import BottomNav from "../components/BottomNav";
 import CartDrawer from "../components/CartDrawer";
@@ -17,16 +17,18 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export default function OrdersPage() {
-    const [phone, setPhone] = useState("");
+    const [searchInput, setSearchInput] = useState("");
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
     const [error, setError] = useState("");
 
+    const isOrderNumber = (input: string) => /[a-zA-Z\-]/.test(input.trim());
+
     const handleSearch = async () => {
-        const clean = phone.replace(/\D/g, "");
-        if (clean.length < 10) {
-            setError("Please enter a valid 10-digit phone number");
+        const trimmed = searchInput.trim();
+        if (!trimmed) {
+            setError("Please enter an order number or phone number");
             return;
         }
 
@@ -34,10 +36,26 @@ export default function OrdersPage() {
         setError("");
         setSearched(true);
         try {
-            const result = await getOrdersByPhone(clean);
-            setOrders(result.data);
+            if (isOrderNumber(trimmed)) {
+                // Search by order number — returns a single order
+                const result = await getOrder(trimmed);
+                setOrders([result.data]);
+            } else {
+                // Search by phone number
+                const clean = trimmed.replace(/\D/g, "");
+                if (clean.length < 10) {
+                    setError("Please enter a valid 10-digit phone number");
+                    setLoading(false);
+                    return;
+                }
+                const result = await getOrdersByPhone(clean);
+                setOrders(result.data);
+            }
         } catch (err) {
-            setError("Failed to load orders. Please try again.");
+            setError(isOrderNumber(trimmed)
+                ? "Order not found. Please check the order number."
+                : "Failed to load orders. Please try again."
+            );
         } finally {
             setLoading(false);
         }
@@ -47,9 +65,15 @@ export default function OrdersPage() {
         if (!confirm(`Cancel order ${orderNumber}?`)) return;
         try {
             await cancelOrder(orderNumber);
-            // Refresh
-            const result = await getOrdersByPhone(phone.replace(/\D/g, ""));
-            setOrders(result.data);
+            // Refresh using same search method
+            const trimmed = searchInput.trim();
+            if (isOrderNumber(trimmed)) {
+                const result = await getOrder(trimmed);
+                setOrders([result.data]);
+            } else {
+                const result = await getOrdersByPhone(trimmed.replace(/\D/g, ""));
+                setOrders(result.data);
+            }
         } catch (err: unknown) {
             alert(err instanceof Error ? err.message : "Failed to cancel");
         }
@@ -67,19 +91,18 @@ export default function OrdersPage() {
                         My Orders
                     </h1>
                     <p className="mt-2 text-sm text-white/50">
-                        Track your orders by entering your mobile number.
+                        Track your orders by entering your Order ID or Order Number.
                     </p>
                 </div>
 
                 {/* Phone Search */}
                 <div className="mb-8 flex gap-3">
                     <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        type="text"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                        placeholder="Enter your 10-digit mobile number"
-                        maxLength={10}
+                        placeholder="Order number (SF-...) or phone number"
                         className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3.5 text-sm text-white placeholder:text-white/25 focus:border-[#D4AF37] focus:outline-none"
                     />
                     <button

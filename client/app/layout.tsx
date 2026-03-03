@@ -28,6 +28,10 @@ export const metadata: Metadata = {
     "Kaju Barfi",
     "Gulab Jamun",
   ],
+  icons: {
+    icon: "/logo.jpeg",
+    apple: "/logo.jpeg",
+  },
   openGraph: {
     title: "Sampoornam Foods — Premium South Indian Sweets & Namkeens",
     description:
