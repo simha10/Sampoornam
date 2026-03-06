@@ -73,6 +73,19 @@ export async function cancelOrder(orderNumber: string) {
     );
 }
 
+// ============ Client APIs ============
+
+export async function getClientByPhone(phone: string) {
+    return apiRequest<{ success: boolean; data: Client }>(`/clients/${phone}`);
+}
+
+export async function upsertClient(data: { phone: string; name: string; defaultAddress?: string; alternatePhone?: string }) {
+    return apiRequest<{ success: boolean; data: Client }>("/clients", {
+        method: "POST",
+        body: data,
+    });
+}
+
 // ============ Types ============
 
 export type ProductVariant = {
@@ -105,16 +118,24 @@ export type OrderItem = {
     lineTotal: number;
 };
 
+export type StatusHistoryEntry = {
+    status: string;
+    changedAt: string;
+    changedBy: "system" | "admin" | "user";
+};
+
 export type Order = {
     _id: string;
     orderNumber: string;
     customerName: string;
     customerPhone: string;
     deliveryAddress: string;
-    deliveryDateTime: string;
+    deliveryDate: string;
+    deliveryTimeSlot: string;
     items: OrderItem[];
     subtotal: number;
     status: string;
+    statusHistory: StatusHistoryEntry[];
     cancelledBy: string | null;
     whatsappSent: boolean;
     notes: string;
@@ -126,7 +147,8 @@ export type CreateOrderPayload = {
     customerName: string;
     customerPhone: string;
     deliveryAddress: string;
-    deliveryDateTime?: string;
+    deliveryDate: string;
+    deliveryTimeSlot: string;
     notes?: string;
     items: {
         productId: string;
@@ -135,13 +157,51 @@ export type CreateOrderPayload = {
     }[];
 };
 
+export type Client = {
+    _id: string;
+    phone: string;
+    name: string;
+    defaultAddress: string;
+    alternatePhone: string;
+    orderCount: number;
+    totalSpent: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
 export type AdminStats = {
     totalOrders: number;
     activeOrders: number;
     deliveredOrders: number;
     cancelledOrders: number;
     totalProducts: number;
+    totalClients: number;
     totalRevenue: number;
+};
+
+export type RequirementByVariant = {
+    productName: string;
+    variant: string;
+    totalQty: number;
+    deliveredQty: number;
+    requirementQty: number;
+};
+
+export type RequirementByProduct = {
+    productName: string;
+    totalWeight: number;
+    deliveredWeight: number;
+    requirementWeight: number;
+    totalQty: number;
+    deliveredQty: number;
+    requirementQty: number;
+};
+
+export type RequirementsData = {
+    date: string;
+    totalOrders: number;
+    byVariant: RequirementByVariant[];
+    byProduct: RequirementByProduct[];
 };
 
 // ============ Admin APIs ============
@@ -205,4 +265,24 @@ export async function adminDeleteProduct(token: string, id: string) {
         method: "DELETE",
         headers: authHeaders(token),
     });
+}
+
+export async function adminGetRequirements(token: string, date: string) {
+    return apiRequest<{ success: boolean; data: RequirementsData }>(
+        `/admin/requirements?date=${date}`,
+        { headers: authHeaders(token) }
+    );
+}
+
+export async function adminGetClients(token: string) {
+    return apiRequest<{ success: boolean; count: number; data: Client[] }>("/admin/clients", {
+        headers: authHeaders(token),
+    });
+}
+
+export async function adminGetClientOrders(token: string, phone: string) {
+    return apiRequest<{ success: boolean; count: number; data: Order[] }>(
+        `/admin/clients/${phone}/orders`,
+        { headers: authHeaders(token) }
+    );
 }

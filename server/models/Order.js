@@ -12,13 +12,27 @@ const orderItemSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const statusHistorySchema = new mongoose.Schema(
+    {
+        status: { type: String, required: true },
+        changedAt: { type: Date, default: Date.now },
+        changedBy: {
+            type: String,
+            enum: ["system", "admin", "user"],
+            default: "system",
+        },
+    },
+    { _id: false }
+);
+
 const orderSchema = new mongoose.Schema(
     {
         orderNumber: { type: String, required: true, unique: true },
         customerName: { type: String, required: true, trim: true },
         customerPhone: { type: String, required: true, trim: true },
         deliveryAddress: { type: String, required: true, trim: true },
-        deliveryDateTime: { type: String, default: "" },
+        deliveryDate: { type: Date, required: true },
+        deliveryTimeSlot: { type: String, required: true },
         items: [orderItemSchema],
         subtotal: { type: Number, required: true },
         status: {
@@ -26,6 +40,7 @@ const orderSchema = new mongoose.Schema(
             enum: ["ordered", "confirmed", "preparing", "out-for-delivery", "delivered", "cancelled"],
             default: "ordered",
         },
+        statusHistory: [statusHistorySchema],
         cancelledBy: {
             type: String,
             enum: ["user", "admin", null],

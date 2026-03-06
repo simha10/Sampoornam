@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const adminAuth = require("../middleware/auth");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
+const Client = require("../models/Client");
 
 const router = express.Router();
 
@@ -105,7 +106,7 @@ router.get("/orders", adminAuth, async (req, res) => {
     }
 });
 
-// PATCH /api/admin/orders/:id/status — Update order status
+// PATCH /api/admin/orders/:id/status — Update order status (with timeline tracking)
 router.patch("/orders/:id/status", adminAuth, async (req, res) => {
     try {
         const { status } = req.body;
@@ -125,9 +126,153 @@ router.patch("/orders/:id/status", adminAuth, async (req, res) => {
 
         order.status = status;
         if (status === "cancelled") order.cancelledBy = "admin";
+
+        // Push to status history for timeline tracking
+        order.statusHistory.push({
+            status,
+            changedBy: "admin",
+            changedAt: new Date(),
+        });
+
         await order.save();
 
         res.json({ success: true, data: order });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/admin/requirements?date=YYYY-MM-DD — Daily requirements aggregation
+router.get("/requirements", adminAuth, async (req, res) => {
+    try {
+        const dateStr = req.query.date;
+        if (!dateStr) {
+            return res.status(400).json({ success: false, error: "Date query parameter is required (YYYY-MM-DD)" });
+        }
+
+        const targetDate = new Date(dateStr);
+        if (isNaN(targetDate.getTime())) {
+            return res.status(400).json({ success: false, error: "Invalid date format" });
+        }
+
+        // Date range for the whole day
+        const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+        const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
+
+        // Fetch all non-cancelled orders for this delivery date
+        const orders = await Order.find({
+            deliveryDate: { $gte: dayStart, $lt: dayEnd },
+            status: { $ne: "cancelled" },
+        });
+
+        // Aggregate by product + variant
+        const byVariant = {};
+        // Aggregate by product (total weight)
+        const byProduct = {};
+
+        for (const order of orders) {
+            // out-for-delivery and delivered = already prepared (counts as "delivered")
+            const isDelivered = ["out-for-delivery", "delivered"].includes(order.status);
+
+            for (const item of order.items) {
+                // --- By Variant ---
+                const variantKey = `${item.productName}|||${item.variant}`;
+                if (!byVariant[variantKey]) {
+                    byVariant[variantKey] = {
+                        productName: item.productName,
+                        variant: item.variant,
+                        totalQty: 0,
+                        deliveredQty: 0,
+                        requirementQty: 0,
+                    };
+                }
+                byVariant[variantKey].totalQty += item.quantity;
+                if (isDelivered) {
+                    byVariant[variantKey].deliveredQty += item.quantity;
+                } else {
+                    byVariant[variantKey].requirementQty += item.quantity;
+                }
+
+                // --- By Product (weight aggregation) ---
+                // Find the product's variant weight from the DB
+                if (!byProduct[item.productName]) {
+                    byProduct[item.productName] = {
+                        productName: item.productName,
+                        totalWeight: 0,
+                        deliveredWeight: 0,
+                        requirementWeight: 0,
+                        totalQty: 0,
+                        deliveredQty: 0,
+                        requirementQty: 0,
+                    };
+                }
+
+                // Parse weight from variant label (e.g., "250g" → 250, "1kg" → 1000, "6 pcs" → 6)
+                const weight = parseVariantWeight(item.variant);
+                const totalWeight = weight * item.quantity;
+
+                byProduct[item.productName].totalWeight += totalWeight;
+                byProduct[item.productName].totalQty += item.quantity;
+                if (isDelivered) {
+                    byProduct[item.productName].deliveredWeight += totalWeight;
+                    byProduct[item.productName].deliveredQty += item.quantity;
+                } else {
+                    byProduct[item.productName].requirementWeight += totalWeight;
+                    byProduct[item.productName].requirementQty += item.quantity;
+                }
+            }
+        }
+
+        res.json({
+            success: true,
+            data: {
+                date: dateStr,
+                totalOrders: orders.length,
+                byVariant: Object.values(byVariant),
+                byProduct: Object.values(byProduct),
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Helper: parse variant label to weight in grams (or piece count)
+function parseVariantWeight(variantLabel) {
+    const label = variantLabel.toLowerCase().trim();
+
+    // Match "1kg", "500g", "250g"
+    const kgMatch = label.match(/^([\d.]+)\s*kg$/);
+    if (kgMatch) return parseFloat(kgMatch[1]) * 1000;
+
+    const gMatch = label.match(/^([\d.]+)\s*g$/);
+    if (gMatch) return parseFloat(gMatch[1]);
+
+    // Match "6 pcs", "12 pcs"
+    const pcsMatch = label.match(/^(\d+)\s*pcs?$/);
+    if (pcsMatch) return parseInt(pcsMatch[1], 10);
+
+    // Fallback: try to parse as number
+    const num = parseFloat(label);
+    return isNaN(num) ? 0 : num;
+}
+
+// GET /api/admin/clients — List all clients
+router.get("/clients", adminAuth, async (req, res) => {
+    try {
+        const clients = await Client.find().sort({ updatedAt: -1 });
+        res.json({ success: true, count: clients.length, data: clients });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// GET /api/admin/clients/:phone/orders — Client's order history
+router.get("/clients/:phone/orders", adminAuth, async (req, res) => {
+    try {
+        const cleanPhone = req.params.phone.replace(/\D/g, "");
+        const orders = await Order.find({ customerPhone: cleanPhone }).sort({ createdAt: -1 });
+        res.json({ success: true, count: orders.length, data: orders });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -143,6 +288,7 @@ router.get("/stats", adminAuth, async (req, res) => {
         const deliveredOrders = await Order.countDocuments({ status: "delivered" });
         const cancelledOrders = await Order.countDocuments({ status: "cancelled" });
         const totalProducts = await Product.countDocuments();
+        const totalClients = await Client.countDocuments();
 
         // Revenue from delivered orders
         const revenueResult = await Order.aggregate([
@@ -159,6 +305,7 @@ router.get("/stats", adminAuth, async (req, res) => {
                 deliveredOrders,
                 cancelledOrders,
                 totalProducts,
+                totalClients,
                 totalRevenue,
             },
         });

@@ -8,6 +8,8 @@ import {
     PhoneIcon,
     MapPinIcon,
     ChatBubbleLeftEllipsisIcon,
+    CalendarDaysIcon,
+    PrinterIcon,
 } from "@heroicons/react/24/outline";
 import { useAdminStore } from "@/stores/adminStore";
 import { adminGetOrders, adminUpdateOrderStatus, Order } from "@/lib/api";
@@ -83,10 +85,44 @@ export default function AdminOrdersPage() {
         setExpandedId((prev) => (prev === id ? null : id));
     };
 
+    const handlePrint = (order: Order) => {
+        const w = window.open("", "_blank", "width=420,height=600");
+        if (!w) return;
+
+        const deliveryDateStr = order.deliveryDate
+            ? new Date(order.deliveryDate).toLocaleDateString("en-IN", {
+                  day: "numeric", month: "short", year: "numeric",
+              })
+            : "N/A";
+
+        const itemsHtml = order.items
+            .map(
+                (item) =>
+                    `<tr><td style="padding:6px 0">${item.productName} (${item.variant} × ${item.quantity})</td><td style="text-align:right;padding:6px 0">₹${item.lineTotal.toLocaleString("en-IN")}</td></tr>`
+            )
+            .join("");
+
+        w.document.write(`<!DOCTYPE html><html><head><title>Invoice - ${order.orderNumber}</title>
+<style>body{font-family:system-ui,sans-serif;max-width:380px;margin:20px auto;color:#222}h2{margin:0}table{width:100%;border-collapse:collapse}hr{border:0;border-top:1px solid #ddd;margin:12px 0}.label{color:#888;font-size:12px}.total{font-size:16px;font-weight:700}</style></head><body>
+<h2>Sampoornam Foods</h2><p class="label">Invoice</p>
+<hr/>
+<p><b>${order.orderNumber}</b></p>
+<p class="label">Customer</p><p>${order.customerName}<br/>${order.customerPhone}</p>
+<p class="label">Delivery</p><p>${order.deliveryAddress}<br/>${deliveryDateStr} | ${order.deliveryTimeSlot || "N/A"}</p>
+<hr/>
+<table>${itemsHtml}<tr style="border-top:1px solid #ddd"><td style="padding:8px 0" class="total">Total</td><td style="text-align:right;padding:8px 0" class="total">₹${order.subtotal.toLocaleString("en-IN")}</td></tr></table>
+${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
+<hr/><p class="label" style="text-align:center">Thank you for ordering!</p>
+</body></html>`);
+        w.document.close();
+        w.focus();
+        w.print();
+    };
+
     return (
         <div>
             <div className="mb-6">
-                <h1 className="font-[family-name:var(--font-playfair)] text-2xl font-bold text-white sm:text-3xl">
+                <h1 className="font-(family-name:--font-playfair) text-2xl font-bold text-white sm:text-3xl">
                     Orders
                 </h1>
                 <p className="mt-1 text-sm text-white/40">
@@ -101,7 +137,7 @@ export default function AdminOrdersPage() {
                         key={tab.key}
                         onClick={() => setFilter(tab.key)}
                         className={`rounded-full px-4 py-2 text-xs font-medium transition-all ${filter === tab.key
-                            ? "bg-[#D4AF37] text-[#0a0a0a]"
+                            ? "bg-brand-gold text-[#0a0a0a]"
                             : "border border-white/10 text-white/50 hover:border-white/20 hover:text-white/80"
                             }`}
                     >
@@ -118,7 +154,7 @@ export default function AdminOrdersPage() {
             {loading ? (
                 <div className="flex flex-col gap-3">
                     {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/[0.03]" />
+                        <div key={i} className="h-24 animate-pulse rounded-2xl bg-white/3" />
                     ))}
                 </div>
             ) : orders.length === 0 ? (
@@ -138,12 +174,12 @@ export default function AdminOrdersPage() {
                                 layout
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02]"
+                                className="overflow-hidden rounded-2xl border border-white/6 bg-white/2"
                             >
                                 {/* Order Header Row */}
                                 <div
                                     onClick={() => toggleExpand(order._id)}
-                                    className="flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.02]"
+                                    className="flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-white/2"
                                 >
                                     <div className="flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
@@ -173,7 +209,7 @@ export default function AdminOrdersPage() {
                                             value={order.status}
                                             onChange={(e) => handleStatusChange(order._id, e.target.value)}
                                             disabled={isUpdating}
-                                            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-white focus:border-[#D4AF37] focus:outline-none disabled:opacity-40"
+                                            className="rounded-lg border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-medium text-white focus:border-brand-gold focus:outline-none disabled:opacity-40"
                                         >
                                             {ALL_STATUSES.map((s) => (
                                                 <option key={s} value={s} className="bg-[#1a1a1a] text-white">
@@ -200,7 +236,7 @@ export default function AdminOrdersPage() {
                                             transition={{ duration: 0.25 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="border-t border-white/[0.04] px-5 py-4">
+                                            <div className="border-t border-white/4 px-5 py-4">
                                                 {/* Contact Info */}
                                                 <div className="mb-4 flex flex-col gap-2">
                                                     <div className="flex items-center gap-2 text-xs text-white/50">
@@ -220,8 +256,8 @@ export default function AdminOrdersPage() {
                                                 </div>
 
                                                 {/* Items */}
-                                                <div className="rounded-xl border border-white/[0.04] bg-white/[0.01]">
-                                                    <div className="border-b border-white/[0.04] px-4 py-2">
+                                                <div className="rounded-xl border border-white/4 bg-white/1">
+                                                    <div className="border-b border-white/4 px-4 py-2">
                                                         <p className="text-[10px] font-bold tracking-wider text-white/30 uppercase">
                                                             Items
                                                         </p>
@@ -230,7 +266,7 @@ export default function AdminOrdersPage() {
                                                         <div
                                                             key={idx}
                                                             className={`flex items-center justify-between px-4 py-2.5 text-sm ${idx < order.items.length - 1
-                                                                ? "border-b border-white/[0.03]"
+                                                                ? "border-b border-white/3"
                                                                 : ""
                                                                 }`}
                                                         >
@@ -245,9 +281,9 @@ export default function AdminOrdersPage() {
                                                             </span>
                                                         </div>
                                                     ))}
-                                                    <div className="flex items-center justify-between border-t border-white/[0.06] px-4 py-2.5">
+                                                    <div className="flex items-center justify-between border-t border-white/6 px-4 py-2.5">
                                                         <span className="text-sm font-bold text-white">Total</span>
-                                                        <span className="text-sm font-bold text-[#D4AF37]">
+                                                        <span className="text-sm font-bold text-brand-gold">
                                                             ₹{order.subtotal.toLocaleString("en-IN")}
                                                         </span>
                                                     </div>
@@ -258,6 +294,64 @@ export default function AdminOrdersPage() {
                                                         Cancelled by: {order.cancelledBy}
                                                     </p>
                                                 )}
+
+                                                {/* Delivery Schedule */}
+                                                {(order.deliveryDate || order.deliveryTimeSlot) && (
+                                                    <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
+                                                        <CalendarDaysIcon className="h-3.5 w-3.5" />
+                                                        <span>
+                                                            Delivery:{" "}
+                                                            {order.deliveryDate
+                                                                ? new Date(order.deliveryDate).toLocaleDateString("en-IN", {
+                                                                      weekday: "short", day: "numeric", month: "short",
+                                                                  })
+                                                                : "N/A"}
+                                                            {order.deliveryTimeSlot && ` | ${order.deliveryTimeSlot}`}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Status Timeline */}
+                                                {order.statusHistory && order.statusHistory.length > 0 && (
+                                                    <div className="mt-4">
+                                                        <p className="mb-2 text-[10px] font-bold tracking-wider text-white/30 uppercase">
+                                                            Status Timeline
+                                                        </p>
+                                                        <div className="relative ml-2 border-l border-white/10 pl-4">
+                                                            {order.statusHistory.map((entry, idx) => {
+                                                                const entryStyle = STATUS_STYLE[entry.status] || STATUS_STYLE.ordered;
+                                                                return (
+                                                                    <div key={idx} className="relative mb-3 last:mb-0">
+                                                                        <div
+                                                                            className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 ${entryStyle.bg} ${entryStyle.badge}`}
+                                                                        />
+                                                                        <p className={`text-xs font-semibold ${entryStyle.text}`}>
+                                                                            {entry.status.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-white/25">
+                                                                            {new Date(entry.changedAt).toLocaleDateString("en-IN", {
+                                                                                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                                                                            })}
+                                                                            {" · by "}
+                                                                            {entry.changedBy}
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Print Invoice */}
+                                                <div className="mt-4 flex justify-end">
+                                                    <button
+                                                        onClick={() => handlePrint(order)}
+                                                        className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                                                    >
+                                                        <PrinterIcon className="h-3.5 w-3.5" />
+                                                        Print Invoice
+                                                    </button>
+                                                </div>
                                             </div>
                                         </motion.div>
                                     )}

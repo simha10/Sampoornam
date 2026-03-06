@@ -8,6 +8,7 @@ import {
     CheckCircleIcon,
     XCircleIcon,
     CubeIcon,
+    UserGroupIcon,
     CurrencyRupeeIcon,
 } from "@heroicons/react/24/outline";
 import { useAdminStore } from "@/stores/adminStore";
@@ -19,6 +20,7 @@ const STAT_CARDS = [
     { key: "deliveredOrders" as const, label: "Delivered", icon: CheckCircleIcon, color: "text-green-400", bg: "bg-green-400/10" },
     { key: "cancelledOrders" as const, label: "Cancelled", icon: XCircleIcon, color: "text-red-400", bg: "bg-red-400/10" },
     { key: "totalProducts" as const, label: "Products", icon: CubeIcon, color: "text-purple-400", bg: "bg-purple-400/10" },
+    { key: "totalClients" as const, label: "Clients", icon: UserGroupIcon, color: "text-cyan-400", bg: "bg-cyan-400/10" },
     { key: "totalRevenue" as const, label: "Revenue", icon: CurrencyRupeeIcon, color: "text-[#D4AF37]", bg: "bg-[#D4AF37]/10" },
 ];
 
@@ -48,7 +50,7 @@ export default function AdminDashboardPage() {
     return (
         <div>
             <div className="mb-8">
-                <h1 className="font-[family-name:var(--font-playfair)] text-2xl font-bold text-white sm:text-3xl">
+                <h1 className="font-(family-name:--font-playfair) text-2xl font-bold text-white sm:text-3xl">
                     Dashboard
                 </h1>
                 <p className="mt-1 text-sm text-white/40">
@@ -68,7 +70,7 @@ export default function AdminDashboardPage() {
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: index * 0.08 }}
-                        className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5"
+                        className="rounded-2xl border border-white/6 bg-white/2 p-5"
                     >
                         <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${card.bg}`}>
                             <card.icon className={`h-5 w-5 ${card.color}`} />
@@ -77,7 +79,7 @@ export default function AdminDashboardPage() {
                             {card.label}
                         </p>
                         {loading ? (
-                            <div className="mt-1 h-8 w-20 animate-pulse rounded-lg bg-white/[0.06]" />
+                            <div className="mt-1 h-8 w-20 animate-pulse rounded-lg bg-white/6" />
                         ) : (
                             <p className="mt-1 text-2xl font-bold text-white">
                                 {card.key === "totalRevenue"

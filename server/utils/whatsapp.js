@@ -19,7 +19,8 @@ ${itemLines}
 
 👤 Name: ${order.customerName}
 📱 Phone: ${order.customerPhone}
-📍 Address: ${order.deliveryAddress}${order.deliveryDateTime ? `\n🕐 Delivery: ${order.deliveryDateTime}` : ""}${order.notes ? `\n📝 Notes: ${order.notes}` : ""}`;
+📍 Address: ${order.deliveryAddress}
+🗓️ Delivery: ${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "N/A"} | ${order.deliveryTimeSlot || "N/A"}${order.notes ? `\n📝 Notes: ${order.notes}` : ""}`;
 
     const encodedMessage = encodeURIComponent(message);
     const whatsappNumber = process.env.WHATSAPP_NUMBER;

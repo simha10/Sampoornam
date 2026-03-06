@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { getOrdersByPhone, getOrder, cancelOrder, Order } from "@/lib/api";
+import { useCartStore } from "@/stores/cartStore";
 import AppHeader from "../components/AppHeader";
 import BottomNav from "../components/BottomNav";
 import CartDrawer from "../components/CartDrawer";
@@ -79,6 +80,24 @@ export default function OrdersPage() {
         }
     };
 
+    const handleReorder = (order: Order) => {
+        const { clearCart, addItem, updateQuantity: setQty, openCart } = useCartStore.getState();
+        clearCart();
+        order.items.forEach((item) => {
+            addItem({
+                productId: item.product,
+                productName: item.productName,
+                variant: item.variant,
+                unitPrice: item.unitPrice,
+            });
+            // addItem sets qty=1, so update to desired quantity
+            if (item.quantity > 1) {
+                setQty(item.product, item.variant, item.quantity);
+            }
+        });
+        openCart();
+    };
+
     return (
         <main className="min-h-screen bg-[#0a0a0a]">
             <AppHeader />
@@ -87,7 +106,7 @@ export default function OrdersPage() {
             <div className="mx-auto max-w-7xl px-6 pb-24 pt-24 sm:px-10 sm:pt-28 lg:px-16">
                 {/* Page Header */}
                 <div className="mb-8">
-                    <h1 className="font-[family-name:var(--font-playfair)] text-3xl font-bold text-white sm:text-4xl">
+                    <h1 className="font-(family-name:--font-playfair) text-3xl font-bold text-white sm:text-4xl">
                         My Orders
                     </h1>
                     <p className="mt-2 text-sm text-white/50">
@@ -103,12 +122,12 @@ export default function OrdersPage() {
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                         placeholder="Order number (SF-...) or phone number"
-                        className="flex-1 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3.5 text-sm text-white placeholder:text-white/25 focus:border-[#D4AF37] focus:outline-none"
+                        className="flex-1 rounded-xl border border-white/10 bg-white/3 px-5 py-3.5 text-sm text-white placeholder:text-white/25 focus:border-brand-gold focus:outline-none"
                     />
                     <button
                         onClick={handleSearch}
                         disabled={loading}
-                        className="rounded-xl bg-[#D4AF37] px-6 py-3.5 text-sm font-bold text-[#0a0a0a] transition-all hover:bg-[#F5E6A3] disabled:opacity-50"
+                        className="rounded-xl bg-brand-gold px-6 py-3.5 text-sm font-bold text-[#0a0a0a] transition-all hover:bg-brand-gold/80 disabled:opacity-50"
                     >
                         {loading ? "..." : "Search"}
                     </button>
@@ -138,10 +157,10 @@ export default function OrdersPage() {
                                 key={order._id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="overflow-hidden rounded-2xl border border-white/[0.04] bg-white/[0.02]"
+                                className="overflow-hidden rounded-2xl border border-white/4 bg-white/2"
                             >
                                 {/* Order Header */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.04] px-5 py-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/4 px-5 py-4">
                                     <div>
                                         <span className="text-sm font-bold text-white">{order.orderNumber}</span>
                                         <span className="ml-3 text-xs text-white/30">
@@ -180,18 +199,26 @@ export default function OrdersPage() {
                                 </div>
 
                                 {/* Footer */}
-                                <div className="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
+                                <div className="flex items-center justify-between border-t border-white/4 px-5 py-3">
                                     <span className="text-base font-bold text-white">
                                         Total: ₹{order.subtotal.toLocaleString("en-IN")}
                                     </span>
-                                    {canCancel && (
+                                    <div className="flex items-center gap-2">
                                         <button
-                                            onClick={() => handleCancel(order.orderNumber)}
-                                            className="rounded-lg px-4 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-400/10"
+                                            onClick={() => handleReorder(order)}
+                                            className="rounded-lg bg-brand-gold/10 px-4 py-1.5 text-xs font-medium text-brand-gold transition-colors hover:bg-brand-gold/20"
                                         >
-                                            Cancel Order
+                                            🔄 Reorder
                                         </button>
-                                    )}
+                                        {canCancel && (
+                                            <button
+                                                onClick={() => handleCancel(order.orderNumber)}
+                                                className="rounded-lg px-4 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-400/10"
+                                            >
+                                                Cancel Order
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </motion.div>
                         );

@@ -1,6 +1,7 @@
 const express = require("express");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const Client = require("../models/Client");
 const { formatWhatsAppMessage } = require("../utils/whatsapp");
 
 const router = express.Router();
@@ -8,13 +9,13 @@ const router = express.Router();
 // POST /api/orders — Create a new order
 router.post("/", async (req, res) => {
     try {
-        const { customerName, customerPhone, deliveryAddress, deliveryDateTime, items, notes } = req.body;
+        const { customerName, customerPhone, deliveryAddress, deliveryDate, deliveryTimeSlot, items, notes } = req.body;
 
         // Validate required fields
-        if (!customerName || !customerPhone || !deliveryAddress || !items || items.length === 0) {
+        if (!customerName || !customerPhone || !deliveryAddress || !deliveryDate || !deliveryTimeSlot || !items || items.length === 0) {
             return res.status(400).json({
                 success: false,
-                error: "Missing required fields: customerName, customerPhone, deliveryAddress, items",
+                error: "Missing required fields: customerName, customerPhone, deliveryAddress, deliveryDate, deliveryTimeSlot, items",
             });
         }
 
@@ -24,6 +25,15 @@ router.post("/", async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: "Invalid phone number. Must be at least 10 digits.",
+            });
+        }
+
+        // Validate delivery date is not in the past
+        const deliveryDateObj = new Date(deliveryDate);
+        if (isNaN(deliveryDateObj.getTime())) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid delivery date.",
             });
         }
 
@@ -61,18 +71,39 @@ router.post("/", async (req, res) => {
             });
         }
 
-        // Create the order
+        // Create the order with initial status history
         const order = new Order({
             customerName,
             customerPhone: cleanPhone,
             deliveryAddress,
-            deliveryDateTime: deliveryDateTime || "",
+            deliveryDate: deliveryDateObj,
+            deliveryTimeSlot,
             items: orderItems,
             subtotal,
             notes: notes || "",
+            statusHistory: [
+                { status: "ordered", changedBy: "system", changedAt: new Date() },
+            ],
         });
 
         await order.save();
+
+        // Upsert client record
+        try {
+            await Client.findOneAndUpdate(
+                { phone: cleanPhone },
+                {
+                    phone: cleanPhone,
+                    name: customerName.trim(),
+                    defaultAddress: deliveryAddress.trim(),
+                    $inc: { orderCount: 1, totalSpent: subtotal },
+                },
+                { upsert: true, new: true }
+            );
+        } catch (clientErr) {
+            // Don't fail the order if client upsert fails
+            console.error("Client upsert error:", clientErr.message);
+        }
 
         // Generate WhatsApp URL
         const { whatsappUrl } = formatWhatsAppMessage(order);
@@ -131,6 +162,11 @@ router.patch("/:orderNumber/cancel", async (req, res) => {
 
         order.status = "cancelled";
         order.cancelledBy = "user";
+        order.statusHistory.push({
+            status: "cancelled",
+            changedBy: "user",
+            changedAt: new Date(),
+        });
         await order.save();
 
         res.json({ success: true, data: order });

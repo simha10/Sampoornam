@@ -7,7 +7,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
     HomeIcon,
     ClipboardDocumentListIcon,
+    ClipboardDocumentCheckIcon,
     CubeIcon,
+    UserGroupIcon,
     ArrowRightStartOnRectangleIcon,
     Bars3Icon,
     XMarkIcon,
@@ -17,7 +19,9 @@ import { useAdminStore } from "@/stores/adminStore";
 const NAV_ITEMS = [
     { label: "Dashboard", href: "/admin", icon: HomeIcon },
     { label: "Orders", href: "/admin/orders", icon: ClipboardDocumentListIcon },
+    { label: "Requirements", href: "/admin/requirements", icon: ClipboardDocumentCheckIcon },
     { label: "Products", href: "/admin/products", icon: CubeIcon },
+    { label: "Clients", href: "/admin/clients", icon: UserGroupIcon },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -46,7 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!mounted || !isAuthenticated()) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#D4AF37] border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand-gold border-t-transparent" />
             </div>
         );
     }
@@ -73,16 +77,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/[0.06] bg-[#0e0e0e] transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+                className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/6 bg-[#0e0e0e] transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
                     }`}
             >
                 {/* Sidebar Header */}
-                <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-5">
+                <div className="flex items-center justify-between border-b border-white/6 px-5 py-5">
                     <div>
-                        <h2 className="font-[family-name:var(--font-playfair)] text-lg font-bold text-white">
+                        <h2 className="font-(family-name:--font-playfair) text-lg font-bold text-white">
                             Sampoornam Foods
                         </h2>
-                        <p className="text-[11px] font-medium tracking-widest text-[#D4AF37] uppercase">
+                        <p className="text-[11px] font-medium tracking-widest text-brand-gold uppercase">
                             Admin Panel
                         </p>
                     </div>
@@ -109,12 +113,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         href={item.href}
                                         onClick={() => setSidebarOpen(false)}
                                         className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all ${isActive
-                                            ? "bg-[#D4AF37]/10 text-[#D4AF37]"
-                                            : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
+                                            ? "bg-brand-gold/10 text-brand-gold"
+                                            : "text-white/50 hover:bg-white/4 hover:text-white/80"
                                             }`}
                                     >
                                         <item.icon
-                                            className={`h-5 w-5 transition-colors ${isActive ? "text-[#D4AF37]" : "text-white/30 group-hover:text-white/60"
+                                            className={`h-5 w-5 transition-colors ${isActive ? "text-brand-gold" : "text-white/30 group-hover:text-white/60"
                                                 }`}
                                         />
                                         {item.label}
@@ -126,7 +130,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </nav>
 
                 {/* Logout */}
-                <div className="border-t border-white/[0.06] px-3 py-4">
+                <div className="border-t border-white/6 px-3 py-4">
                     <button
                         onClick={handleLogout}
                         className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-red-400/70 transition-all hover:bg-red-400/5 hover:text-red-400"
@@ -140,14 +144,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Main Content Area */}
             <div className="flex flex-1 flex-col">
                 {/* Top Bar (mobile only) */}
-                <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-white/[0.06] bg-[#0a0a0a]/90 px-4 py-3 backdrop-blur-xl lg:hidden">
+                <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-white/6 bg-[#0a0a0a]/90 px-4 py-3 backdrop-blur-xl lg:hidden">
                     <button
                         onClick={() => setSidebarOpen(true)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.04] text-white/60 hover:bg-white/10"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/4 text-white/60 hover:bg-white/10"
                     >
                         <Bars3Icon className="h-5 w-5" />
                     </button>
-                    <h1 className="font-[family-name:var(--font-playfair)] text-base font-bold text-white">
+                    <h1 className="font-(family-name:--font-playfair) text-base font-bold text-white">
                         Admin
                     </h1>
                 </header>
