@@ -12,7 +12,11 @@ export default function AppHeader() {
     const openCart = useCartStore((s) => s.openCart);
     const pathname = usePathname();
     const [shopOpen, setShopOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Prevent hydration mismatch: cart badge only renders after client mount
+    useEffect(() => { setMounted(true); }, []);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -32,15 +36,15 @@ export default function AppHeader() {
             initial={{ y: -60 }}
             animate={{ y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="fixed left-0 right-0 top-0 z-[60] border-b border-white/[0.06] bg-[#0a0a0a]/95 backdrop-blur-2xl"
+            className="fixed left-0 right-0 top-0 z-60 border-b border-white/6 bg-[#0a0a0a]/95 backdrop-blur-2xl"
         >
             <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 sm:h-[72px] sm:px-10 lg:px-16">
                 {/* Logo */}
                 <Link href="/" className="flex items-baseline gap-2">
-                    <span className="font-[family-name:var(--font-playfair)] text-xl font-bold tracking-tight text-white sm:text-2xl">
+                    <span className="font-(family-name:--font-playfair)text-xl font-bold tracking-tight text-white sm:text-2xl">
                         Sampoornam
                     </span>
-                    <span className="bg-gradient-to-r from-[#D4AF37] to-[#F5E6A3] bg-clip-text font-[family-name:var(--font-playfair)] text-base font-bold tracking-tight text-transparent sm:text-lg">
+                    <span className="bg-linear-to-r from-brand-gold to-[#F5E6A3] bg-clip-text font-(family-name:--font-playfair) text-base font-bold tracking-tight text-transparent sm:text-lg">
                         Foods
                     </span>
                 </Link>
@@ -49,7 +53,7 @@ export default function AppHeader() {
                 <nav className="hidden items-center gap-8 md:flex">
                     <Link
                         href="/"
-                        className={`text-[13px] font-medium tracking-wide transition-colors hover:text-[#D4AF37] ${pathname === "/" ? "text-[#D4AF37]" : "text-white/60"
+                        className={`text-[13px] font-medium tracking-wide transition-colors hover:text-brand-gold ${pathname === "/" ? "text-brand-gold" : "text-white/60"
                             }`}
                     >
                         Home
@@ -59,7 +63,7 @@ export default function AppHeader() {
                     <div ref={dropdownRef} className="relative">
                         <button
                             onClick={() => setShopOpen(!shopOpen)}
-                            className={`flex items-center gap-1 text-[13px] font-medium tracking-wide transition-colors hover:text-[#D4AF37] ${isShopActive ? "text-[#D4AF37]" : "text-white/60"
+                            className={`flex items-center gap-1 text-[13px] font-medium tracking-wide transition-colors hover:text-brand-gold ${isShopActive ? "text-brand-gold" : "text-white/60"
                                 }`}
                         >
                             Shop
@@ -75,19 +79,19 @@ export default function AppHeader() {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 8 }}
                                     transition={{ duration: 0.15 }}
-                                    className="absolute left-1/2 top-full mt-2 w-44 -translate-x-1/2 overflow-hidden rounded-xl border border-white/[0.06] bg-[#141414] shadow-2xl"
+                                    className="absolute left-1/2 top-full mt-2 w-44 -translate-x-1/2 overflow-hidden rounded-xl border border-white/6 bg-[#141414] shadow-2xl"
                                 >
                                     <Link
                                         href="/shop?category=sweets"
                                         onClick={() => setShopOpen(false)}
-                                        className="block px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.04] hover:text-[#D4AF37]"
+                                        className="block px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/4 hover:text-brand-gold"
                                     >
                                         🍬 Sweets
                                     </Link>
                                     <Link
                                         href="/shop?category=namkeens"
                                         onClick={() => setShopOpen(false)}
-                                        className="block px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.04] hover:text-[#D4AF37]"
+                                        className="block px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/4 hover:text-brand-gold"
                                     >
                                         🥨 Namkeens
                                     </Link>
@@ -98,7 +102,7 @@ export default function AppHeader() {
 
                     <Link
                         href="/orders"
-                        className={`text-[13px] font-medium tracking-wide transition-colors hover:text-[#D4AF37] ${pathname === "/orders" ? "text-[#D4AF37]" : "text-white/60"
+                        className={`text-[13px] font-medium tracking-wide transition-colors hover:text-brand-gold ${pathname === "/orders" ? "text-brand-gold" : "text-white/60"
                             }`}
                     >
                         Orders
@@ -108,11 +112,11 @@ export default function AppHeader() {
                 {/* Cart */}
                 <button
                     onClick={openCart}
-                    className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] text-white/70 transition-colors hover:bg-white/[0.08] hover:text-[#D4AF37]"
+                    className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-white/6 text-white/70 transition-colors hover:bg-white/8 hover:text-brand-gold"
                 >
                     <ShoppingBagIcon className="h-5 w-5" />
-                    {itemCount > 0 && (
-                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#D4AF37] text-[10px] font-bold text-[#0a0a0a]">
+                    {mounted && itemCount > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-gold text-[10px] font-bold text-[#0a0a0a]">
                             {itemCount > 9 ? "9+" : itemCount}
                         </span>
                     )}

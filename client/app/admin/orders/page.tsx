@@ -10,9 +10,11 @@ import {
     ChatBubbleLeftEllipsisIcon,
     CalendarDaysIcon,
     PrinterIcon,
+    PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useAdminStore } from "@/stores/adminStore";
 import { adminGetOrders, adminUpdateOrderStatus, Order } from "@/lib/api";
+import OfflineOrderModal from "./OfflineOrderModal";
 
 const ALL_STATUSES = ["ordered", "confirmed", "preparing", "out-for-delivery", "delivered", "cancelled"] as const;
 
@@ -43,6 +45,7 @@ export default function AdminOrdersPage() {
     const [filter, setFilter] = useState("");
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [showOfflineModal, setShowOfflineModal] = useState(false);
 
     const fetchOrders = useCallback(async () => {
         const token = getToken();
@@ -121,13 +124,22 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
 
     return (
         <div>
-            <div className="mb-6">
-                <h1 className="font-(family-name:--font-playfair) text-2xl font-bold text-white sm:text-3xl">
-                    Orders
-                </h1>
-                <p className="mt-1 text-sm text-white/40">
-                    Manage and update order statuses.
-                </p>
+            <div className="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 className="font-(family-name:--font-playfair) text-2xl font-bold text-white sm:text-3xl">
+                        Orders
+                    </h1>
+                    <p className="mt-1 text-sm text-white/40">
+                        Manage and update order statuses.
+                    </p>
+                </div>
+                <button
+                    onClick={() => setShowOfflineModal(true)}
+                    className="flex items-center gap-2 rounded-xl bg-brand-gold px-4 py-2.5 text-sm font-bold text-[#0a0a0a] transition-all hover:bg-[#F5E6A3]"
+                >
+                    <PlusIcon className="h-4 w-4" />
+                    Add Offline Order
+                </button>
             </div>
 
             {/* Filter Tabs */}
@@ -191,6 +203,11 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
                                             >
                                                 {order.status.replace("-", " ")}
                                             </span>
+                                            {order.source === "offline" && (
+                                                <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-400">
+                                                    📞 Offline
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="mt-1 text-xs text-white/40">
                                             {order.customerName} · ₹{order.subtotal.toLocaleString("en-IN")} ·{" "}
@@ -361,6 +378,13 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
                     })}
                 </div>
             )}
+
+            {/* Offline Order Modal */}
+            <OfflineOrderModal
+                isOpen={showOfflineModal}
+                onClose={() => setShowOfflineModal(false)}
+                onOrderCreated={fetchOrders}
+            />
         </div>
     );
 }

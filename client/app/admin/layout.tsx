@@ -19,7 +19,7 @@ import { useAdminStore } from "@/stores/adminStore";
 const NAV_ITEMS = [
     { label: "Dashboard", href: "/admin", icon: HomeIcon },
     { label: "Orders", href: "/admin/orders", icon: ClipboardDocumentListIcon },
-    { label: "Requirements", href: "/admin/requirements", icon: ClipboardDocumentCheckIcon },
+    { label: "Delivery Target", href: "/admin/requirements", icon: ClipboardDocumentCheckIcon },
     { label: "Products", href: "/admin/products", icon: CubeIcon },
     { label: "Clients", href: "/admin/clients", icon: UserGroupIcon },
 ];

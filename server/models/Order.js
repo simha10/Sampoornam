@@ -47,6 +47,11 @@ const orderSchema = new mongoose.Schema(
             default: null,
         },
         whatsappSent: { type: Boolean, default: false },
+        source: {
+            type: String,
+            enum: ["online", "offline"],
+            default: "online",
+        },
         notes: { type: String, default: "" },
     },
     { timestamps: true }

@@ -142,6 +142,94 @@ router.patch("/orders/:id/status", adminAuth, async (req, res) => {
     }
 });
 
+// POST /api/admin/orders — Create an offline order (for phone-call orders)
+router.post("/orders", adminAuth, async (req, res) => {
+    try {
+        const { customerName, customerPhone, deliveryAddress, deliveryDate, deliveryTimeSlot, items, notes, status } = req.body;
+
+        if (!customerName || !customerPhone || !deliveryAddress || !deliveryDate || !deliveryTimeSlot || !items || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Missing required fields: customerName, customerPhone, deliveryAddress, deliveryDate, deliveryTimeSlot, items",
+            });
+        }
+
+        const cleanPhone = customerPhone.replace(/\D/g, "");
+        if (cleanPhone.length < 10) {
+            return res.status(400).json({ success: false, error: "Invalid phone number." });
+        }
+
+        const deliveryDateObj = new Date(deliveryDate);
+        if (isNaN(deliveryDateObj.getTime())) {
+            return res.status(400).json({ success: false, error: "Invalid delivery date." });
+        }
+
+        // Build order items with price verification
+        const orderItems = [];
+        let subtotal = 0;
+
+        for (const item of items) {
+            const product = await Product.findById(item.productId);
+            if (!product) {
+                return res.status(400).json({ success: false, error: `Product not found: ${item.productId}` });
+            }
+            const variant = product.variants.find((v) => v.label === item.variant);
+            if (!variant) {
+                return res.status(400).json({ success: false, error: `Invalid variant "${item.variant}" for "${product.name}"` });
+            }
+            const lineTotal = variant.price * item.quantity;
+            subtotal += lineTotal;
+            orderItems.push({
+                product: product._id,
+                productName: product.name,
+                variant: item.variant,
+                quantity: item.quantity,
+                unitPrice: variant.price,
+                lineTotal,
+            });
+        }
+
+        const initialStatus = status || "confirmed";
+        const order = new Order({
+            customerName,
+            customerPhone: cleanPhone,
+            deliveryAddress,
+            deliveryDate: deliveryDateObj,
+            deliveryTimeSlot,
+            items: orderItems,
+            subtotal,
+            notes: notes || "",
+            source: "offline",
+            status: initialStatus,
+            statusHistory: [
+                { status: initialStatus, changedBy: "admin", changedAt: new Date() },
+            ],
+        });
+
+        await order.save();
+
+        // Upsert client record
+        try {
+            await Client.findOneAndUpdate(
+                { phone: cleanPhone },
+                {
+                    phone: cleanPhone,
+                    name: customerName.trim(),
+                    defaultAddress: deliveryAddress.trim(),
+                    $inc: { orderCount: 1, totalSpent: subtotal },
+                },
+                { upsert: true, new: true }
+            );
+        } catch (clientErr) {
+            console.error("Client upsert error:", clientErr.message);
+        }
+
+        res.status(201).json({ success: true, data: order });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/admin/requirements?date=YYYY-MM-DD — Daily requirements aggregation
 router.get("/requirements", adminAuth, async (req, res) => {
     try {
@@ -155,9 +243,10 @@ router.get("/requirements", adminAuth, async (req, res) => {
             return res.status(400).json({ success: false, error: "Invalid date format" });
         }
 
-        // Date range for the whole day
-        const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-        const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1);
+        // Date range for the whole day (UTC-based to match how deliveryDate is stored)
+        const dayStart = new Date(dateStr + "T00:00:00.000Z");
+        const dayEnd = new Date(dayStart);
+        dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
 
         // Fetch all non-cancelled orders for this delivery date
         const orders = await Order.find({
@@ -170,9 +259,14 @@ router.get("/requirements", adminAuth, async (req, res) => {
         // Aggregate by product (total weight)
         const byProduct = {};
 
+        let toPrepareOrders = 0;
+        let dispatchedOrders = 0;
+
         for (const order of orders) {
             // out-for-delivery and delivered = already prepared (counts as "delivered")
             const isDelivered = ["out-for-delivery", "delivered"].includes(order.status);
+            if (isDelivered) dispatchedOrders++;
+            else toPrepareOrders++;
 
             for (const item of order.items) {
                 // --- By Variant ---
@@ -228,6 +322,8 @@ router.get("/requirements", adminAuth, async (req, res) => {
             data: {
                 date: dateStr,
                 totalOrders: orders.length,
+                toPrepareOrders,
+                dispatchedOrders,
                 byVariant: Object.values(byVariant),
                 byProduct: Object.values(byProduct),
             },

@@ -9,22 +9,32 @@ function formatWhatsAppMessage(order) {
         )
         .join("\n");
 
-    const message = `🛒 *New Order — Sampoornam Foods*
-📋 Order: *${order.orderNumber}*
+    const message = `📦 *New Order - Sampoornam Foods*
+🆔 Order ID: *${order.orderNumber}*
 
-📦 *Items:*
+📋 *Items:*
 ${itemLines}
 
-💰 *Total: ₹${order.subtotal.toLocaleString("en-IN")}*
+🪙 *Total: ₹${order.subtotal.toLocaleString("en-IN")}*
 
 👤 Name: ${order.customerName}
 📱 Phone: ${order.customerPhone}
 📍 Address: ${order.deliveryAddress}
-🗓️ Delivery: ${order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "N/A"} | ${order.deliveryTimeSlot || "N/A"}${order.notes ? `\n📝 Notes: ${order.notes}` : ""}`;
+🗓️ Delivery: ${
+order.deliveryDate
+? new Date(order.deliveryDate).toLocaleDateString("en-IN", {
+weekday: "short",
+day: "numeric",
+month: "short",
+year: "numeric"
+})
+: "N/A"
+} | ${order.deliveryTimeSlot || "N/A"}${order.notes ? `\n📝 Notes: ${order.notes}` : ""}`;
 
     const encodedMessage = encodeURIComponent(message);
-    const whatsappNumber = process.env.WHATSAPP_NUMBER;
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`;
+
+    const whatsappUrl =
+        `https://api.whatsapp.com/send?phone=${process.env.WHATSAPP_NUMBER}&text=${encodedMessage}`;
 
     return { message, whatsappUrl };
 }

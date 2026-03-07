@@ -142,7 +142,7 @@ export default function AdminClientsPage() {
                                             {client.phone}
                                         </span>
                                         {client.defaultAddress && (
-                                            <span className="flex items-center gap-1 truncate max-w-[200px]">
+                                            <span className="flex items-center gap-1 truncate max-w-[300px]">
                                                 <MapPinIcon className="h-3 w-3 shrink-0" />
                                                 {client.defaultAddress}
                                             </span>

@@ -8,8 +8,9 @@ import { adminGetRequirements, RequirementByVariant, RequirementByProduct } from
 
 type ViewMode = "variant" | "weight";
 
-function todayStr(): string {
+function defaultDate(): string {
     const d = new Date();
+    d.setDate(d.getDate() + 1);
     return d.toISOString().split("T")[0];
 }
 
@@ -23,11 +24,13 @@ function formatWeight(grams: number): string {
 
 export default function AdminRequirementsPage() {
     const { getToken } = useAdminStore();
-    const [date, setDate] = useState(todayStr());
+    const [date, setDate] = useState(defaultDate());
     const [view, setView] = useState<ViewMode>("variant");
     const [byVariant, setByVariant] = useState<RequirementByVariant[]>([]);
     const [byProduct, setByProduct] = useState<RequirementByProduct[]>([]);
     const [totalOrders, setTotalOrders] = useState(0);
+    const [toPrepareOrders, setToPrepareOrders] = useState(0);
+    const [dispatchedOrders, setDispatchedOrders] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -42,6 +45,8 @@ export default function AdminRequirementsPage() {
             setByVariant(result.data.byVariant);
             setByProduct(result.data.byProduct);
             setTotalOrders(result.data.totalOrders);
+            setToPrepareOrders(result.data.toPrepareOrders ?? 0);
+            setDispatchedOrders(result.data.dispatchedOrders ?? 0);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Failed to load requirements");
         } finally {
@@ -86,10 +91,10 @@ export default function AdminRequirementsPage() {
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="font-(family-name:--font-playfair) text-2xl font-bold text-white sm:text-3xl">
-                        Daily Requirements
+                        Delivery Target
                     </h1>
                     <p className="mt-1 text-sm text-white/40">
-                        Production needs based on delivery date.
+                        Daily delivery target based on delivery schedule.
                     </p>
                 </div>
 
@@ -152,20 +157,16 @@ export default function AdminRequirementsPage() {
                     <div className="flex-1 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 text-center">
                         <p className="text-xs font-medium text-amber-400/60">To Prepare</p>
                         <p className="mt-1 text-2xl font-bold text-amber-400">
-                            {view === "variant"
-                                ? byVariant.reduce((s, r) => s + r.requirementQty, 0)
-                                : byProduct.reduce((s, r) => s + r.requirementQty, 0)
-                            }
+                            {toPrepareOrders}
                         </p>
+                        <p className="text-[10px] text-amber-400/40">orders</p>
                     </div>
                     <div className="flex-1 rounded-2xl border border-green-500/20 bg-green-500/5 p-4 text-center">
                         <p className="text-xs font-medium text-green-400/60">Dispatched</p>
                         <p className="mt-1 text-2xl font-bold text-green-400">
-                            {view === "variant"
-                                ? byVariant.reduce((s, r) => s + r.deliveredQty, 0)
-                                : byProduct.reduce((s, r) => s + r.deliveredQty, 0)
-                            }
+                            {dispatchedOrders}
                         </p>
+                        <p className="text-[10px] text-green-400/40">orders</p>
                     </div>
                 </div>
             )}

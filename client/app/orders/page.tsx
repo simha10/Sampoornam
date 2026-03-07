@@ -1,20 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    ChevronDownIcon,
+    ChevronUpIcon,
+    MapPinIcon,
+    CalendarDaysIcon,
+} from "@heroicons/react/24/outline";
 import { getOrdersByPhone, getOrder, cancelOrder, Order } from "@/lib/api";
 import { useCartStore } from "@/stores/cartStore";
 import AppHeader from "../components/AppHeader";
 import BottomNav from "../components/BottomNav";
 import CartDrawer from "../components/CartDrawer";
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-    ordered: { bg: "bg-blue-500/15", text: "text-blue-400" },
-    confirmed: { bg: "bg-indigo-500/15", text: "text-indigo-400" },
-    preparing: { bg: "bg-yellow-500/15", text: "text-yellow-400" },
-    "out-for-delivery": { bg: "bg-orange-500/15", text: "text-orange-400" },
-    delivered: { bg: "bg-green-500/15", text: "text-green-400" },
-    cancelled: { bg: "bg-red-500/15", text: "text-red-400" },
+const STATUS_COLORS: Record<string, { bg: string; text: string; badge: string }> = {
+    ordered: { bg: "bg-blue-500/15", text: "text-blue-400", badge: "border-blue-500/30" },
+    confirmed: { bg: "bg-indigo-500/15", text: "text-indigo-400", badge: "border-indigo-500/30" },
+    preparing: { bg: "bg-yellow-500/15", text: "text-yellow-400", badge: "border-yellow-500/30" },
+    "out-for-delivery": { bg: "bg-orange-500/15", text: "text-orange-400", badge: "border-orange-500/30" },
+    delivered: { bg: "bg-green-500/15", text: "text-green-400", badge: "border-green-500/30" },
+    cancelled: { bg: "bg-red-500/15", text: "text-red-400", badge: "border-red-500/30" },
 };
 
 export default function OrdersPage() {
@@ -23,6 +29,7 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
     const [error, setError] = useState("");
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const isOrderNumber = (input: string) => /[a-zA-Z\-]/.test(input.trim());
 
@@ -151,19 +158,31 @@ export default function OrdersPage() {
                     {orders.map((order) => {
                         const statusStyle = STATUS_COLORS[order.status] || STATUS_COLORS.ordered;
                         const canCancel = !["delivered", "cancelled"].includes(order.status);
+                        const isExpanded = expandedId === order._id;
 
                         return (
                             <motion.div
                                 key={order._id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
+                                layout
                                 className="overflow-hidden rounded-2xl border border-white/4 bg-white/2"
                             >
-                                {/* Order Header */}
-                                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/4 px-5 py-4">
-                                    <div>
-                                        <span className="text-sm font-bold text-white">{order.orderNumber}</span>
-                                        <span className="ml-3 text-xs text-white/30">
+                                {/* Order Header — Clickable */}
+                                <div
+                                    onClick={() => setExpandedId(isExpanded ? null : order._id)}
+                                    className="flex cursor-pointer flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-white/2"
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-sm font-bold text-white">{order.orderNumber}</span>
+                                            <span
+                                                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text} ${statusStyle.badge}`}
+                                            >
+                                                {order.status.replace("-", " ")}
+                                            </span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-white/30">
                                             {new Date(order.createdAt).toLocaleDateString("en-IN", {
                                                 day: "numeric",
                                                 month: "short",
@@ -171,55 +190,125 @@ export default function OrdersPage() {
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                             })}
-                                        </span>
+                                            {" · "}
+                                            {order.items.length} item{order.items.length !== 1 ? "s" : ""}
+                                            {" · ₹"}{order.subtotal.toLocaleString("en-IN")}
+                                        </p>
                                     </div>
-                                    <span
-                                        className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${statusStyle.bg} ${statusStyle.text}`}
-                                    >
-                                        {order.status.replace("-", " ")}
-                                    </span>
+                                    {isExpanded ? (
+                                        <ChevronUpIcon className="h-4 w-4 shrink-0 text-white/30" />
+                                    ) : (
+                                        <ChevronDownIcon className="h-4 w-4 shrink-0 text-white/30" />
+                                    )}
                                 </div>
 
-                                {/* Items */}
-                                <div className="px-5 py-3">
-                                    {order.items.map((item, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="flex items-center justify-between py-1.5 text-sm"
+                                {/* Expanded Details */}
+                                <AnimatePresence>
+                                    {isExpanded && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: "auto", opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.25 }}
+                                            className="overflow-hidden"
                                         >
-                                            <span className="text-white/70">
-                                                {item.productName}{" "}
-                                                <span className="text-white/30">({item.variant} × {item.quantity})</span>
-                                            </span>
-                                            <span className="font-medium text-white/80">
-                                                ₹{item.lineTotal.toLocaleString("en-IN")}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
+                                            <div className="border-t border-white/4 px-5 py-4">
+                                                {/* Items */}
+                                                <div className="mb-4">
+                                                    {order.items.map((item, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className="flex items-center justify-between py-1.5 text-sm"
+                                                        >
+                                                            <span className="text-white/70">
+                                                                {item.productName}{" "}
+                                                                <span className="text-white/30">({item.variant} × {item.quantity})</span>
+                                                            </span>
+                                                            <span className="font-medium text-white/80">
+                                                                ₹{item.lineTotal.toLocaleString("en-IN")}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    <div className="mt-2 flex items-center justify-between border-t border-white/6 pt-2">
+                                                        <span className="text-sm font-bold text-white">Total</span>
+                                                        <span className="text-sm font-bold text-brand-gold">
+                                                            ₹{order.subtotal.toLocaleString("en-IN")}
+                                                        </span>
+                                                    </div>
+                                                </div>
 
-                                {/* Footer */}
-                                <div className="flex items-center justify-between border-t border-white/4 px-5 py-3">
-                                    <span className="text-base font-bold text-white">
-                                        Total: ₹{order.subtotal.toLocaleString("en-IN")}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleReorder(order)}
-                                            className="rounded-lg bg-brand-gold/10 px-4 py-1.5 text-xs font-medium text-brand-gold transition-colors hover:bg-brand-gold/20"
-                                        >
-                                            🔄 Reorder
-                                        </button>
-                                        {canCancel && (
-                                            <button
-                                                onClick={() => handleCancel(order.orderNumber)}
-                                                className="rounded-lg px-4 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-400/10"
-                                            >
-                                                Cancel Order
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                                {/* Delivery Info */}
+                                                {(order.deliveryDate || order.deliveryTimeSlot) && (
+                                                    <div className="mb-4 flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-2 text-xs text-white/50">
+                                                            <CalendarDaysIcon className="h-3.5 w-3.5" />
+                                                            <span>
+                                                                Delivery:{" "}
+                                                                {order.deliveryDate
+                                                                    ? new Date(order.deliveryDate).toLocaleDateString("en-IN", {
+                                                                          weekday: "short", day: "numeric", month: "short",
+                                                                      })
+                                                                    : "N/A"}
+                                                                {order.deliveryTimeSlot && ` | ${order.deliveryTimeSlot}`}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-start gap-2 text-xs text-white/50">
+                                                            <MapPinIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                                            <span>{order.deliveryAddress}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Status Timeline */}
+                                                {order.statusHistory && order.statusHistory.length > 0 && (
+                                                    <div className="mb-4">
+                                                        <p className="mb-2 text-[10px] font-bold tracking-wider text-white/30 uppercase">
+                                                            Order Timeline
+                                                        </p>
+                                                        <div className="relative ml-2 border-l border-white/10 pl-4">
+                                                            {order.statusHistory.map((entry, idx) => {
+                                                                const entryStyle = STATUS_COLORS[entry.status] || STATUS_COLORS.ordered;
+                                                                return (
+                                                                    <div key={idx} className="relative mb-3 last:mb-0">
+                                                                        <div
+                                                                            className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 ${entryStyle.bg} ${entryStyle.badge}`}
+                                                                        />
+                                                                        <p className={`text-xs font-semibold ${entryStyle.text}`}>
+                                                                            {entry.status.replace("-", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                                                                        </p>
+                                                                        <p className="text-[10px] text-white/25">
+                                                                            {new Date(entry.changedAt).toLocaleDateString("en-IN", {
+                                                                                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                                                                            })}
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleReorder(order)}
+                                                        className="rounded-lg bg-brand-gold/10 px-4 py-1.5 text-xs font-medium text-brand-gold transition-colors hover:bg-brand-gold/20"
+                                                    >
+                                                        🔄 Reorder
+                                                    </button>
+                                                    {canCancel && (
+                                                        <button
+                                                            onClick={() => handleCancel(order.orderNumber)}
+                                                            className="rounded-lg px-4 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-400/10"
+                                                        >
+                                                            Cancel Order
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </motion.div>
                         );
                     })}

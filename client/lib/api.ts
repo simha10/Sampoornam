@@ -138,6 +138,7 @@ export type Order = {
     statusHistory: StatusHistoryEntry[];
     cancelledBy: string | null;
     whatsappSent: boolean;
+    source: "online" | "offline";
     notes: string;
     createdAt: string;
     updatedAt: string;
@@ -150,6 +151,21 @@ export type CreateOrderPayload = {
     deliveryDate: string;
     deliveryTimeSlot: string;
     notes?: string;
+    items: {
+        productId: string;
+        variant: string;
+        quantity: number;
+    }[];
+};
+
+export type AdminCreateOrderPayload = {
+    customerName: string;
+    customerPhone: string;
+    deliveryAddress: string;
+    deliveryDate: string;
+    deliveryTimeSlot: string;
+    notes?: string;
+    status?: string;
     items: {
         productId: string;
         variant: string;
@@ -200,6 +216,8 @@ export type RequirementByProduct = {
 export type RequirementsData = {
     date: string;
     totalOrders: number;
+    toPrepareOrders: number;
+    dispatchedOrders: number;
     byVariant: RequirementByVariant[];
     byProduct: RequirementByProduct[];
 };
@@ -228,6 +246,13 @@ export async function adminGetOrders(token: string, status?: string) {
     return apiRequest<{ success: boolean; count: number; data: Order[] }>(
         `/admin/orders${qs}`,
         { headers: authHeaders(token) }
+    );
+}
+
+export async function adminCreateOrder(token: string, data: AdminCreateOrderPayload) {
+    return apiRequest<{ success: boolean; data: Order }>(
+        "/admin/orders",
+        { method: "POST", body: data, headers: authHeaders(token) }
     );
 }
 
