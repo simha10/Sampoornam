@@ -17,6 +17,15 @@ import { adminGetOrders, adminUpdateOrderStatus, Order } from "@/lib/api";
 import OfflineOrderModal from "./OfflineOrderModal";
 
 const ALL_STATUSES = ["ordered", "confirmed", "preparing", "out-for-delivery", "delivered", "cancelled"] as const;
+const STATUS_SEQUENCE = ["ordered", "confirmed", "preparing", "out-for-delivery", "delivered"];
+
+const STATUS_MESSAGE: Record<string, string> = {
+    confirmed: "has been *confirmed* ✅",
+    preparing: "is now *being prepared* 👨‍🍳",
+    "out-for-delivery": "is *out for delivery* 🚚",
+    delivered: "has been *delivered* 🎉",
+    cancelled: "has been *cancelled* ❌",
+};
 
 const STATUS_STYLE: Record<string, { bg: string; text: string; badge: string }> = {
     ordered: { bg: "bg-blue-500/10", text: "text-blue-400", badge: "border-blue-500/30" },
@@ -47,6 +56,23 @@ export default function AdminOrdersPage() {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
     const [showOfflineModal, setShowOfflineModal] = useState(false);
 
+    // Status change confirmation state
+    const [statusConfirm, setStatusConfirm] = useState<{
+        orderId: string;
+        orderNumber: string;
+        fromStatus: string;
+        toStatus: string;
+        isBackward: boolean;
+    } | null>(null);
+    const [secretKey, setSecretKey] = useState("");
+    const [secretKeyError, setSecretKeyError] = useState("");
+    const [whatsappNotify, setWhatsappNotify] = useState<{
+        customerName: string;
+        customerPhone: string;
+        orderNumber: string;
+        newStatus: string;
+    } | null>(null);
+
     const fetchOrders = useCallback(async () => {
         const token = getToken();
         if (!token) return;
@@ -66,19 +92,61 @@ export default function AdminOrdersPage() {
         fetchOrders();
     }, [fetchOrders]);
 
-    const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const initiateStatusChange = (order: Order, newStatus: string) => {
+        if (newStatus === order.status) return;
+
+        const currentIdx = STATUS_SEQUENCE.indexOf(order.status);
+        const newIdx = STATUS_SEQUENCE.indexOf(newStatus);
+
+        const isBackward =
+            (currentIdx >= 0 && newIdx >= 0 && newIdx < currentIdx) ||
+            (order.status === "cancelled" && newStatus !== "cancelled") ||
+            (order.status === "delivered" && newStatus === "cancelled");
+
+        setStatusConfirm({
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            fromStatus: order.status,
+            toStatus: newStatus,
+            isBackward,
+        });
+        setSecretKey("");
+        setSecretKeyError("");
+    };
+
+    const confirmStatusChange = async () => {
+        if (!statusConfirm) return;
         const token = getToken();
         if (!token) return;
 
-        setUpdatingId(orderId);
+        setUpdatingId(statusConfirm.orderId);
         try {
-            const result = await adminUpdateOrderStatus(token, orderId, newStatus);
-            // Update in local state
-            setOrders((prev) =>
-                prev.map((o) => (o._id === orderId ? result.data : o))
+            const result = await adminUpdateOrderStatus(
+                token,
+                statusConfirm.orderId,
+                statusConfirm.toStatus,
+                statusConfirm.isBackward ? secretKey : undefined
             );
+            const updatedOrder = result.data;
+            setOrders((prev) =>
+                prev.map((o) => (o._id === statusConfirm.orderId ? updatedOrder : o))
+            );
+            // Show WhatsApp notify option instead of closing
+            setStatusConfirm(null);
+            setWhatsappNotify({
+                customerName: updatedOrder.customerName,
+                customerPhone: updatedOrder.customerPhone,
+                orderNumber: updatedOrder.orderNumber,
+                newStatus: statusConfirm.toStatus,
+            });
         } catch (err: unknown) {
-            alert(err instanceof Error ? err.message : "Failed to update status");
+            const msg = err instanceof Error ? err.message : "Failed to update status";
+            if (msg.includes("Secret key") || msg.includes("secret")) {
+                setSecretKeyError("Invalid secret key. Please try again.");
+            } else {
+                alert(msg);
+                setStatusConfirm(null);
+            }
         } finally {
             setUpdatingId(null);
         }
@@ -124,7 +192,7 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
 
     return (
         <div>
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="font-(family-name:--font-playfair) text-2xl font-bold text-white sm:text-3xl">
                         Orders
@@ -135,7 +203,7 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
                 </div>
                 <button
                     onClick={() => setShowOfflineModal(true)}
-                    className="flex items-center gap-2 rounded-xl bg-brand-gold px-4 py-2.5 text-sm font-bold text-[#0a0a0a] transition-all hover:bg-[#F5E6A3]"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-brand-gold px-4 py-2.5 text-sm font-bold text-[#0a0a0a] transition-all hover:bg-[#F5E6A3] sm:w-auto"
                 >
                     <PlusIcon className="h-4 w-4" />
                     Add Offline Order
@@ -224,7 +292,7 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
                                     <div onClick={(e) => e.stopPropagation()}>
                                         <select
                                             value={order.status}
-                                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                            onChange={(e) => initiateStatusChange(order, e.target.value)}
                                             disabled={isUpdating}
                                             className="rounded-lg border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-medium text-white focus:border-brand-gold focus:outline-none disabled:opacity-40"
                                         >
@@ -378,6 +446,132 @@ ${order.notes ? `<hr/><p class="label">Notes: ${order.notes}</p>` : ""}
                     })}
                 </div>
             )}
+
+            {/* Status Change Confirmation Modal */}
+            <AnimatePresence>
+                {statusConfirm && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setStatusConfirm(null)}
+                            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/8 bg-[#111] p-6 shadow-2xl"
+                        >
+                            <h3 className="text-base font-bold text-white">
+                                {statusConfirm.isBackward ? "⚠️ Reverse Status Change" : "Confirm Status Change"}
+                            </h3>
+                            <p className="mt-2 text-sm text-white/50">
+                                Change <span className="font-semibold text-white">{statusConfirm.orderNumber}</span> status:
+                            </p>
+
+                            <div className="mt-3 flex items-center gap-3">
+                                <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase ${STATUS_STYLE[statusConfirm.fromStatus]?.bg} ${STATUS_STYLE[statusConfirm.fromStatus]?.text} ${STATUS_STYLE[statusConfirm.fromStatus]?.badge}`}>
+                                    {statusConfirm.fromStatus.replace("-", " ")}
+                                </span>
+                                <span className="text-white/30">→</span>
+                                <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase ${STATUS_STYLE[statusConfirm.toStatus]?.bg} ${STATUS_STYLE[statusConfirm.toStatus]?.text} ${STATUS_STYLE[statusConfirm.toStatus]?.badge}`}>
+                                    {statusConfirm.toStatus.replace("-", " ")}
+                                </span>
+                            </div>
+
+                            {statusConfirm.isBackward && (
+                                <div className="mt-4">
+                                    <p className="mb-2 text-xs font-medium text-amber-400">
+                                        🔒 Reversing status requires admin secret key
+                                    </p>
+                                    <input
+                                        type="password"
+                                        value={secretKey}
+                                        onChange={(e) => { setSecretKey(e.target.value); setSecretKeyError(""); }}
+                                        placeholder="Enter secret key..."
+                                        className="w-full rounded-xl border border-white/10 bg-white/3 px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-brand-gold focus:outline-none"
+                                        onKeyDown={(e) => e.key === "Enter" && confirmStatusChange()}
+                                    />
+                                    {secretKeyError && (
+                                        <p className="mt-1 text-xs text-red-400">{secretKeyError}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="mt-5 flex gap-3">
+                                <button
+                                    onClick={() => setStatusConfirm(null)}
+                                    className="flex-1 rounded-xl border border-white/15 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/5"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmStatusChange}
+                                    disabled={updatingId !== null || (statusConfirm.isBackward && !secretKey)}
+                                    className="flex-1 rounded-xl bg-brand-gold py-2.5 text-sm font-bold text-[#0a0a0a] transition-all hover:bg-[#F5E6A3] disabled:opacity-40"
+                                >
+                                    {updatingId ? "Updating..." : "Confirm"}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* WhatsApp Notify Modal — shown after successful status change */}
+            <AnimatePresence>
+                {whatsappNotify && (
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setWhatsappNotify(null)}
+                            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/8 bg-[#111] p-6 shadow-2xl"
+                        >
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-500/15">
+                                <span className="text-2xl">✅</span>
+                            </div>
+                            <h3 className="text-base font-bold text-white">Status Updated!</h3>
+                            <p className="mt-1 text-sm text-white/50">
+                                <span className="font-semibold text-white">{whatsappNotify.orderNumber}</span> is now{" "}
+                                <span className={`font-semibold ${STATUS_STYLE[whatsappNotify.newStatus]?.text}`}>
+                                    {whatsappNotify.newStatus.replace("-", " ")}
+                                </span>
+                            </p>
+
+                            <div className="mt-5 flex flex-col gap-2.5">
+                                <a
+                                    href={`https://api.whatsapp.com/send?phone=91${whatsappNotify.customerPhone.replace(/\D/g, "").slice(-10)}&text=${encodeURIComponent(
+                                        `Hi ${whatsappNotify.customerName}! 🙏\n\nYour *Sampoornam Foods* order *${whatsappNotify.orderNumber}* ${STATUS_MESSAGE[whatsappNotify.newStatus] || `is now *${whatsappNotify.newStatus}*`}\n\nThank you for choosing Sampoornam Foods! 🙏`
+                                    )}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setWhatsappNotify(null)}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 text-sm font-bold text-white transition-all hover:bg-[#22c55e] active:scale-[0.98]"
+                                >
+                                    <span className="text-lg">📲</span>
+                                    Notify Customer via WhatsApp
+                                </a>
+                                <button
+                                    onClick={() => setWhatsappNotify(null)}
+                                    className="rounded-xl border border-white/10 py-2.5 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
+                                >
+                                    Skip
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
             {/* Offline Order Modal */}
             <OfflineOrderModal

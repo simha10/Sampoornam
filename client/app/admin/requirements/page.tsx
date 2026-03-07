@@ -22,6 +22,11 @@ function formatWeight(grams: number): string {
     return `${grams} g`;
 }
 
+function formatAmount(value: number, pricingType: "weight" | "piece"): string {
+    if (pricingType === "piece") return `${value} pcs`;
+    return formatWeight(value);
+}
+
 export default function AdminRequirementsPage() {
     const { getToken } = useAdminStore();
     const [date, setDate] = useState(defaultDate());
@@ -143,13 +148,13 @@ export default function AdminRequirementsPage() {
                             : "border border-white/10 text-white/50 hover:border-white/20 hover:text-white/80"
                     }`}
                 >
-                    ⚖️ By Product Weight
+                    ⚖️ By Product
                 </button>
             </div>
 
             {/* Summary Bar */}
             {!loading && hasData && (
-                <div className="mb-6 flex gap-4">
+                <div className="mb-6 grid grid-cols-3 gap-3 sm:gap-4">
                     <div className="flex-1 rounded-2xl border border-white/6 bg-white/2 p-4 text-center">
                         <p className="text-xs font-medium text-white/40">Orders</p>
                         <p className="mt-1 text-2xl font-bold text-white">{totalOrders}</p>
@@ -159,14 +164,14 @@ export default function AdminRequirementsPage() {
                         <p className="mt-1 text-2xl font-bold text-amber-400">
                             {toPrepareOrders}
                         </p>
-                        <p className="text-[10px] text-amber-400/40">orders</p>
+                        <p className="text-[10px] text-amber-400/40">{toPrepareOrders === 1 ? "order" : "orders"}</p>
                     </div>
                     <div className="flex-1 rounded-2xl border border-green-500/20 bg-green-500/5 p-4 text-center">
                         <p className="text-xs font-medium text-green-400/60">Dispatched</p>
                         <p className="mt-1 text-2xl font-bold text-green-400">
                             {dispatchedOrders}
                         </p>
-                        <p className="text-[10px] text-green-400/40">orders</p>
+                        <p className="text-[10px] text-green-400/40">{dispatchedOrders === 1 ? "order" : "orders"}</p>
                     </div>
                 </div>
             )}
@@ -189,7 +194,8 @@ export default function AdminRequirementsPage() {
                 </div>
             ) : view === "variant" ? (
                 /* === BY VARIANT TABLE === */
-                <div className="overflow-hidden rounded-2xl border border-white/6">
+                <div className="overflow-x-auto rounded-2xl border border-white/6">
+                    <div className="min-w-[480px]">
                     {/* Table header */}
                     <div className="grid grid-cols-5 gap-2 border-b border-white/6 bg-white/2 px-5 py-3 text-xs font-semibold text-white/40 uppercase tracking-wider">
                         <span className="col-span-2">Product</span>
@@ -222,10 +228,12 @@ export default function AdminRequirementsPage() {
                             </span>
                         </motion.div>
                     ))}
+                    </div>
                 </div>
             ) : (
                 /* === BY PRODUCT WEIGHT TABLE === */
-                <div className="overflow-hidden rounded-2xl border border-white/6">
+                <div className="overflow-x-auto rounded-2xl border border-white/6">
+                    <div className="min-w-[480px]">
                     <div className="grid grid-cols-4 gap-2 border-b border-white/6 bg-white/2 px-5 py-3 text-xs font-semibold text-white/40 uppercase tracking-wider">
                         <span>Product</span>
                         <span className="text-center text-amber-400">Requirement</span>
@@ -244,28 +252,31 @@ export default function AdminRequirementsPage() {
                         >
                             <div>
                                 <p className="text-sm font-medium text-white">{row.productName}</p>
-                                <p className="text-xs text-white/30">{row.totalQty} units</p>
+                                <p className="text-xs text-white/30">
+                                    {row.totalQty} {row.totalQty === 1 ? "unit" : "units"}
+                                </p>
                             </div>
                             <div className="text-center">
                                 <p className={`text-sm font-bold ${row.requirementWeight > 0 ? "text-amber-400" : "text-white/20"}`}>
-                                    {formatWeight(row.requirementWeight)}
+                                    {formatAmount(row.requirementWeight, row.pricingType)}
                                 </p>
-                                <p className="text-xs text-white/25">{row.requirementQty} units</p>
+                                <p className="text-xs text-white/25">{row.requirementQty} {row.requirementQty === 1 ? "unit" : "units"}</p>
                             </div>
                             <div className="text-center">
                                 <p className={`text-sm font-bold ${row.deliveredWeight > 0 ? "text-green-400" : "text-white/20"}`}>
-                                    {formatWeight(row.deliveredWeight)}
+                                    {formatAmount(row.deliveredWeight, row.pricingType)}
                                 </p>
-                                <p className="text-xs text-white/25">{row.deliveredQty} units</p>
+                                <p className="text-xs text-white/25">{row.deliveredQty} {row.deliveredQty === 1 ? "unit" : "units"}</p>
                             </div>
                             <div className="text-center">
                                 <p className="text-sm font-bold text-white">
-                                    {formatWeight(row.totalWeight)}
+                                    {formatAmount(row.totalWeight, row.pricingType)}
                                 </p>
-                                <p className="text-xs text-white/25">{row.totalQty} units</p>
+                                <p className="text-xs text-white/25">{row.totalQty} {row.totalQty === 1 ? "unit" : "units"}</p>
                             </div>
                         </motion.div>
                     ))}
+                    </div>
                 </div>
             )}
 

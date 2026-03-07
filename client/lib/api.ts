@@ -205,6 +205,7 @@ export type RequirementByVariant = {
 
 export type RequirementByProduct = {
     productName: string;
+    pricingType: "weight" | "piece";
     totalWeight: number;
     deliveredWeight: number;
     requirementWeight: number;
@@ -256,10 +257,10 @@ export async function adminCreateOrder(token: string, data: AdminCreateOrderPayl
     );
 }
 
-export async function adminUpdateOrderStatus(token: string, orderId: string, status: string) {
+export async function adminUpdateOrderStatus(token: string, orderId: string, status: string, secretKey?: string) {
     return apiRequest<{ success: boolean; data: Order }>(
         `/admin/orders/${orderId}/status`,
-        { method: "PATCH", body: { status }, headers: authHeaders(token) }
+        { method: "PATCH", body: { status, ...(secretKey ? { secretKey } : {}) }, headers: authHeaders(token) }
     );
 }
 

@@ -248,7 +248,7 @@ export default function OfflineOrderModal({
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="fixed inset-4 z-50 mx-auto flex max-h-[90vh] max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#0e0e0e] shadow-2xl sm:inset-8"
+                        className="fixed inset-2 z-50 mx-auto flex max-h-[95vh] max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#0e0e0e] shadow-2xl sm:inset-4 md:inset-8"
                     >
                         {/* Modal Header */}
                         <div className="flex items-center justify-between border-b border-white/6 px-6 py-4">
@@ -276,7 +276,7 @@ export default function OfflineOrderModal({
                                 </p>
                             )}
 
-                            <div className="grid gap-6 lg:grid-cols-2">
+                            <div className="grid gap-6 md:grid-cols-2">
                                 {/* LEFT: Customer Details */}
                                 <div className="flex flex-col gap-4">
                                     <h3 className="text-xs font-bold tracking-wider text-brand-gold uppercase">
@@ -562,7 +562,7 @@ export default function OfflineOrderModal({
                                     </p>
                                 )}
                             </div>
-                            <div className="flex gap-3">
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row">
                                 <button
                                     onClick={onClose}
                                     className="rounded-xl border border-white/15 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/5"

@@ -105,12 +105,15 @@ router.get("/orders", adminAuth, async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
 // PATCH /api/admin/orders/:id/status — Update order status (with timeline tracking)
+// Status sequence: ordered → confirmed → preparing → out-for-delivery → delivered
+// Forward moves are free. Backward moves require secretKey === ADMIN_PHONE.
+const STATUS_SEQUENCE = ["ordered", "confirmed", "preparing", "out-for-delivery", "delivered"];
+
 router.patch("/orders/:id/status", adminAuth, async (req, res) => {
     try {
-        const { status } = req.body;
-        const validStatuses = ["ordered", "confirmed", "preparing", "out-for-delivery", "delivered", "cancelled"];
+        const { status, secretKey } = req.body;
+        const validStatuses = [...STATUS_SEQUENCE, "cancelled"];
 
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
@@ -124,15 +127,54 @@ router.patch("/orders/:id/status", adminAuth, async (req, res) => {
             return res.status(404).json({ success: false, error: "Order not found" });
         }
 
+        const currentIndex = STATUS_SEQUENCE.indexOf(order.status);
+        const newIndex = STATUS_SEQUENCE.indexOf(status);
+
+        // Determine if this is a backward move
+        const isBackward =
+            // Moving to a lower index in the sequence
+            (currentIndex >= 0 && newIndex >= 0 && newIndex < currentIndex) ||
+            // Un-cancelling (going from cancelled back to any status)
+            (order.status === "cancelled" && status !== "cancelled") ||
+            // Un-delivering to cancelled doesn't count as backward, but going from delivered to earlier status does
+            (currentIndex >= 0 && status === "cancelled" && order.status === "delivered");
+
+        if (isBackward) {
+            if (!secretKey || secretKey !== ADMIN_PHONE) {
+                return res.status(403).json({
+                    success: false,
+                    error: "Secret key required to reverse order status.",
+                    requiresKey: true,
+                });
+            }
+        }
+
         order.status = status;
         if (status === "cancelled") order.cancelledBy = "admin";
 
-        // Push to status history for timeline tracking
-        order.statusHistory.push({
-            status,
-            changedBy: "admin",
-            changedAt: new Date(),
-        });
+        if (isBackward) {
+            // Clean up timeline: remove all entries whose status index >= target
+            // This makes the timeline look like the mistake never happened
+            order.statusHistory = order.statusHistory.filter((entry) => {
+                const entryIdx = STATUS_SEQUENCE.indexOf(entry.status);
+                // Keep entries that are below the target status in the sequence
+                // Also keep non-sequence statuses like "cancelled" if going to cancelled
+                return entryIdx >= 0 ? entryIdx < newIndex : false;
+            });
+            // Add the corrected status entry
+            order.statusHistory.push({
+                status,
+                changedBy: "admin",
+                changedAt: new Date(),
+            });
+        } else {
+            // Forward move: just append to timeline
+            order.statusHistory.push({
+                status,
+                changedBy: "admin",
+                changedAt: new Date(),
+            });
+        }
 
         await order.save();
 
@@ -259,6 +301,13 @@ router.get("/requirements", adminAuth, async (req, res) => {
         // Aggregate by product (total weight)
         const byProduct = {};
 
+        // Build product pricingType lookup
+        const allProducts = await Product.find({}, { name: 1, pricingType: 1 });
+        const pricingTypeLookup = {};
+        for (const p of allProducts) {
+            pricingTypeLookup[p.name] = p.pricingType || "weight";
+        }
+
         let toPrepareOrders = 0;
         let dispatchedOrders = 0;
 
@@ -290,8 +339,10 @@ router.get("/requirements", adminAuth, async (req, res) => {
                 // --- By Product (weight aggregation) ---
                 // Find the product's variant weight from the DB
                 if (!byProduct[item.productName]) {
+                    const pt = pricingTypeLookup[item.productName] || "weight";
                     byProduct[item.productName] = {
                         productName: item.productName,
+                        pricingType: pt,
                         totalWeight: 0,
                         deliveredWeight: 0,
                         requirementWeight: 0,
@@ -301,7 +352,9 @@ router.get("/requirements", adminAuth, async (req, res) => {
                     };
                 }
 
-                // Parse weight from variant label (e.g., "250g" → 250, "1kg" → 1000, "6 pcs" → 6)
+                // Parse from variant label — works for both:
+                // weight: "250g" → 250, "1kg" → 1000
+                // piece: "12 pcs" → 12
                 const weight = parseVariantWeight(item.variant);
                 const totalWeight = weight * item.quantity;
 

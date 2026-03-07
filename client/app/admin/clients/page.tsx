@@ -127,30 +127,30 @@ export default function AdminClientsPage() {
                             {/* Client Row */}
                             <button
                                 onClick={() => toggleExpand(client.phone)}
-                                className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/2"
+                                className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-white/2 sm:px-5"
                             >
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="text-sm font-bold text-white">{client.name}</h3>
-                                        <span className="rounded-full bg-brand-gold/10 px-2 py-0.5 text-[10px] font-bold text-brand-gold">
-                                            {client.orderCount} orders
-                                        </span>
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-4 text-xs text-white/40">
+                                <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-sm font-bold text-white">{client.name}</h3>
+                                            <span className="rounded-full bg-brand-gold/10 px-2 py-0.5 text-[10px] font-bold text-brand-gold">
+                                                {client.orderCount} orders
+                                            </span>
+                                        </div>
+                                    <div className="mt-1 flex flex-col gap-1 text-xs text-white/40 sm:flex-row sm:items-center sm:gap-4">
                                         <span className="flex items-center gap-1">
                                             <PhoneIcon className="h-3 w-3" />
                                             {client.phone}
                                         </span>
                                         {client.defaultAddress && (
-                                            <span className="flex items-center gap-1 truncate max-w-[300px]">
+                                            <span className="flex items-center gap-1 truncate max-w-[200px] sm:max-w-[300px]">
                                                 <MapPinIcon className="h-3 w-3 shrink-0" />
                                                 {client.defaultAddress}
                                             </span>
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-sm font-bold text-brand-gold">
+                                <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+                                    <span className="text-xs font-bold text-brand-gold sm:text-sm">
                                         ₹{client.totalSpent.toLocaleString("en-IN")}
                                     </span>
                                     <ChevronDownIcon
@@ -183,9 +183,8 @@ export default function AdminClientsPage() {
                                                     {clientOrders[client.phone].map((order) => (
                                                         <div
                                                             key={order._id}
-                                                            className="flex items-center justify-between rounded-xl bg-white/2 px-4 py-3"
-                                                        >
-                                                            <div>
+                                                            className="flex flex-col gap-2 rounded-xl bg-white/2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                                            <div className="min-w-0">
                                                                 <p className="text-xs font-bold text-white">
                                                                     {order.orderNumber}
                                                                 </p>
@@ -199,7 +198,7 @@ export default function AdminClientsPage() {
                                                                     {order.items.length} item{order.items.length > 1 ? "s" : ""}
                                                                 </p>
                                                             </div>
-                                                            <div className="flex items-center gap-3">
+                                                            <div className="flex items-center gap-3 self-end sm:self-center">
                                                                 <span className="text-xs font-bold text-white">
                                                                     ₹{order.subtotal.toLocaleString("en-IN")}
                                                                 </span>
