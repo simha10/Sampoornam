@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { getProducts, Product } from "@/lib/api";
@@ -11,7 +11,7 @@ import CartDrawer from "../components/CartDrawer";
 
 type Category = "all" | "sweets" | "namkeens";
 
-export default function ShopPage() {
+function ShopContent() {
     const searchParams = useSearchParams();
     const initialCategory = (searchParams.get("category") as Category) || "all";
 
@@ -132,5 +132,17 @@ export default function ShopPage() {
 
             <BottomNav />
         </main>
+    );
+}
+
+export default function ShopPage() {
+    return (
+        <Suspense fallback={
+            <main className="min-h-screen bg-[#0a0a0a] pt-24 text-center text-white/50">
+                Loading shop...
+            </main>
+        }>
+            <ShopContent />
+        </Suspense>
     );
 }
