@@ -62,6 +62,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     return (
         <div className="flex min-h-screen bg-[#0a0a0a]">
+            <link rel="manifest" href="/admin-manifest.json" />
+            
             {/* Mobile sidebar backdrop */}
             <AnimatePresence>
                 {sidebarOpen && (

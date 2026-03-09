@@ -10,7 +10,7 @@ npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your MongoDB URI and JWT secret
+# Edit .env with your MongoDB URI and admin credentials
 
 # Seed the database with 27 products
 npm run seed
@@ -26,12 +26,14 @@ The server runs on **http://localhost:5000** by default.
 
 ## Environment Variables
 
-| Variable         | Description                     | Default                          |
-|------------------|---------------------------------|----------------------------------|
-| `PORT`           | Server port                     | `5000`                           |
-| `MONGODB_URI`    | MongoDB connection string       | `mongodb://localhost:27017/sampoornam` |
-| `JWT_SECRET`     | Secret for admin JWT tokens     | —                                |
-| `WHATSAPP_NUMBER`| WhatsApp Business number        | `917007066735`                   |
+| Variable          | Description                    | Default                                |
+| ----------------- | ------------------------------ | -------------------------------------- |
+| `PORT`            | Server port                    | `5000`                                 |
+| `MONGODB_URI`     | MongoDB connection string      | `mongodb://localhost:27017/sampoornam` |
+| `JWT_SECRET`      | Secret for admin JWT tokens    | —                                      |
+| `WHATSAPP_NUMBER` | WhatsApp number for kitchen    | `918639445966`                         |
+| `ADMIN_PHONE`     | Admin login phone + secret key | `8639445966`                           |
+| `ADMIN_PASSWORD`  | Admin login password           | `sampoornam2026`                       |
 
 ## Project Structure
 
@@ -44,17 +46,18 @@ server/
 ├── middleware/
 │   └── auth.js           # JWT authentication middleware
 ├── models/
-│   ├── Product.js        # Product schema (variants, tags, pricing)
-│   └── Order.js          # Order schema (auto order number, status)
+│   ├── Product.js        # Product schema (variants, tags, pricingType)
+│   ├── Order.js          # Order schema (statusHistory, source, auto-number)
+│   └── Client.js         # Client schema (auto-upserted from orders)
 ├── routes/
 │   ├── products.js       # Public: list/filter/detail products
 │   ├── orders.js         # Public: create order, track, cancel
-│   └── admin.js          # Protected: CRUD products, manage orders
+│   └── admin.js          # Protected: products, orders, clients, stats, requirements
 └── utils/
     └── whatsapp.js       # WhatsApp message formatter + URL generator
 ```
 
-## API Overview
+## API Reference
 
 ### Public Endpoints
 
@@ -73,29 +76,64 @@ GET    /api/health                      → Health check
 ### Admin Endpoints (JWT Required)
 
 ```
-POST   /api/admin/login                 → Login (phone + password)
-GET    /api/admin/products              → List all (including hidden)
+POST   /api/admin/login                 → Login (phone + password) → JWT
+GET    /api/admin/products              → List all products (including hidden)
 POST   /api/admin/products              → Create product
 PUT    /api/admin/products/:id          → Update product
 DELETE /api/admin/products/:id          → Delete product
 GET    /api/admin/orders                → List orders (?status= filter)
-PATCH  /api/admin/orders/:id/status     → Update order status
-GET    /api/admin/stats                 → Dashboard stats
+POST   /api/admin/orders                → Create offline order (phone-call orders)
+PATCH  /api/admin/orders/:id/status     → Update order status (with sequence enforcement)
+GET    /api/admin/requirements?date=    → Daily delivery target aggregation
+GET    /api/admin/clients               → List all clients
+GET    /api/admin/clients/:phone/orders → Client order history
+GET    /api/admin/stats                 → Dashboard overview stats
 ```
 
-### Admin Credentials
+### Status Update Endpoint Details
 
-- **Phone:** `7007066735`
-- **Password:** `sampoornam2026`
+`PATCH /api/admin/orders/:id/status`
 
-## Product Data
+**Status sequence:** `ordered` → `confirmed` → `preparing` → `out-for-delivery` → `delivered`
 
-27 products seeded from the Sampoornam menu:
+| Direction | Body                    | Notes                                |
+| --------- | ----------------------- | ------------------------------------ |
+| Forward   | `{ status }`            | Allowed freely                       |
+| Backward  | `{ status, secretKey }` | Requires `secretKey === ADMIN_PHONE` |
 
-- **Sweets (16):** Kaju Barfi, Chandra Kala, Balushahi, Gujiya variants, Laddu variants, Gulab Jamun, Rasugulla, and more
-- **Namkeens (11):** Masala Mathri, Moong Dal, Namakpare, Saboodana, Mini Samosa, and more
+Backward changes also **clean up the status timeline** — removes entries at/above the target status so the timeline looks like the mistake never happened.
 
-Each product has auto-generated weight variants (250g / 500g / 1kg) or piece variants (6 / 12 / 24 pcs).
+### Offline Order Endpoint Details
+
+`POST /api/admin/orders`
+
+Creates an order for phone/walk-in customers. Same validation as regular orders but:
+
+- Tagged with `source: "offline"`
+- Supports setting initial status (e.g., `"confirmed"` or `"delivered"`)
+- Auto-upserts a `Client` record
+
+## Database Schema
+
+### Product
+
+- `name`, `slug` (auto-generated), `category` (sweets/namkeens)
+- `pricingType` (weight/piece), `variants` [{label, price, weight}]
+- `tags`, `isAvailable`, `isFeatured`, `sortOrder`, `imgURL`, `description`
+
+### Order
+
+- `orderNumber` (auto: SF-YYYYMMDD-NNN)
+- `customerName`, `customerPhone`, `deliveryAddress`
+- `deliveryDate`, `deliveryTimeSlot`
+- `items` [{product, productName, variant, quantity, unitPrice, lineTotal}]
+- `subtotal`, `status`, `statusHistory` [{status, changedAt, changedBy}]
+- `source` (online/offline), `cancelledBy` (user/admin), `notes`
+
+### Client
+
+- `phone` (unique), `name`, `address`
+- Auto-upserted whenever an order is placed
 
 ## Order Flow
 
@@ -103,6 +141,6 @@ Each product has auto-generated weight variants (250g / 500g / 1kg) or piece var
 2. Frontend sends `POST /api/orders` with cart items + customer info
 3. Server validates products/variants from DB, calculates totals
 4. Order saved with auto-generated number (`SF-YYYYMMDD-001`)
-5. Server returns a formatted WhatsApp URL
-6. Frontend opens WhatsApp with the order message
-7. Admin manages orders via `/api/admin/orders` endpoints
+5. Server returns formatted WhatsApp URL for kitchen notification
+6. Frontend shows success animation + WhatsApp reminder
+7. Admin manages orders via dashboard with status sequence enforcement

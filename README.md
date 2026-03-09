@@ -2,7 +2,7 @@
 
 Premium South Indian Sweets & Namkeens — E-Commerce Platform
 
-> A full-stack delivery app with WhatsApp-based checkout. No payment gateway, no sign-up required.
+> A full-stack delivery app with WhatsApp-based checkout, admin dashboard, and order management. No payment gateway, no sign-up required.
 
 ---
 
@@ -18,7 +18,7 @@ cd server && npm install
 cd ../client && npm install
 
 # 3. Set up environment
-# Edit server/.env with your MongoDB URI
+# Edit server/.env with your MongoDB URI & admin credentials
 
 # 4. Seed the database (one-time)
 cd server && npm run seed
@@ -29,6 +29,7 @@ cd client && npm run dev    # Frontend on :7000
 ```
 
 Open **http://localhost:7000** to view the app.
+Admin: **http://localhost:7000/admin/login**
 
 ---
 
@@ -37,57 +38,73 @@ Open **http://localhost:7000** to view the app.
 ```
 Sampoornam/
 ├── client/              # Next.js 14 frontend (port 7000)
-│   ├── app/             # Pages and components
-│   ├── lib/             # API client
-│   ├── stores/          # Zustand cart store
+│   ├── app/             # Pages, admin dashboard, components
+│   ├── lib/             # Typed API client
+│   ├── stores/          # Zustand stores (cart, admin auth)
 │   └── public/          # Images and assets
 ├── server/              # Express.js backend (port 5000)
-│   ├── models/          # Mongoose schemas (Product, Order)
+│   ├── models/          # Mongoose schemas (Product, Order, Client)
 │   ├── routes/          # API routes (products, orders, admin)
-│   ├── middleware/       # JWT auth
+│   ├── middleware/      # JWT auth
 │   ├── utils/           # WhatsApp message formatter
 │   └── seed.js          # Database seeder
-└── DOCS/                # PRD, prompts, and implementation docs
+├── DOCS/                # PRD, prompts, and implementation docs
+└── plans/               # Architecture plan, walkthrough
 ```
 
 ---
 
-## ✅ Current Status
+## ✅ Features
 
-### Implemented
-- 🛍️ **Product catalog** — 27 products (16 sweets, 11 namkeens) with weight/piece variants
+### Customer-Facing
+
+- 🛍️ **Product catalog** — products with weight/piece variants
 - 🛒 **Cart system** — Zustand store, slide-out CartDrawer, quantity controls
-- 📱 **WhatsApp checkout** — Orders sent as formatted messages to admin
-- 📋 **Order tracking** — Lookup by phone number, status badges, cancel support
+- 📦 **Place Order** — Animated success screen + WhatsApp reminder to notify kitchen
+- 📋 **Order tracking** — Lookup by phone, expandable order cards with item breakdown, status timeline, delivery info
 - 🧭 **Navigation** — Desktop dropdown + mobile bottom bar (Home, Shop, Cart, Orders)
-- 🎨 **Premium dark theme** — Gold accents, Playfair Display typography, responsive design
-- 🔐 **Admin API** — JWT-protected endpoints for product CRUD and order management
+- 🎨 **Premium dark theme** — Gold accents, Playfair Display typography, fully responsive
 
-### Not Yet Implemented
-- 🖥️ Admin dashboard UI
-- 🖼️ Product images (currently placeholders)
-- 🔍 Search functionality
-- 💳 Payment gateway
-- 📧 Order notifications
+### Admin Dashboard (`/admin`)
+
+- 📊 **Dashboard** — Stats overview (orders, revenue, products, clients)
+- 📋 **Orders** — List, filter by status, expandable details, print invoice
+- 🔄 **Status Sequence** — Enforced flow: Ordered → Confirmed → Preparing → Out for Delivery → Delivered
+- 🔒 **Backtrack Protection** — Reversing status requires admin secret key (ADMIN_PHONE)
+- 📲 **WhatsApp Notify** — After status change, one-click WhatsApp message to customer
+- 📞 **Offline Orders** — Create orders for phone-call customers with full product picker
+- 🎯 **Delivery Target** — Daily aggregation by variant and by product (weight/piece aware)
+- 📦 **Products** — Full CRUD with variant management, image URLs, tags
+- 👥 **Clients** — Auto-tracked from orders, order history per client
+- 📱 **Responsive** — Mobile sidebar with hamburger menu, scrollable tables
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer      | Technology                              |
-|------------|-----------------------------------------|
-| Frontend   | Next.js 14, Tailwind CSS v4, Framer Motion |
-| State      | Zustand (persisted to localStorage)      |
-| Backend    | Express.js 5, Mongoose 9                |
-| Database   | MongoDB                                  |
-| Auth       | JWT (admin only)                         |
-| Checkout   | WhatsApp Business API                    |
+| Layer    | Technology                                 |
+| -------- | ------------------------------------------ |
+| Frontend | Next.js 14, Tailwind CSS v4, Framer Motion |
+| State    | Zustand (cart + admin auth, localStorage)  |
+| Backend  | Express.js 5, Mongoose 9                   |
+| Database | MongoDB                                    |
+| Auth     | JWT (admin only)                           |
+| Checkout | WhatsApp API redirect                      |
+| Icons    | @heroicons/react                           |
 
 ---
 
 ## 📖 Documentation
 
-- **[PRD](DOCS/sampoornam%20PRD.txt)** — Original product requirements
-- **[Implementation](DOCS/IMPLEMENTATION.md)** — Detailed feature documentation
-- **[Server README](server/README.md)** — Backend setup, API reference
-- **[Client README](client/README.md)** — Frontend setup, components, design system
+- **[Implementation](DOCS/IMPLEMENTATION.md)** — Detailed feature docs, API reference, DB schema
+- **[Server README](server/README.md)** — Backend setup, API endpoints, order flow
+- **[Client README](client/README.md)** — Frontend setup, pages, components, design system
+
+---
+
+## 🔮 Planned
+
+- 🔔 WhatsApp Cloud API (auto-send status notifications)
+- 🖼️ Product images (currently emoji placeholders)
+- 🔍 Search functionality
+- 💳 Payment gateway
